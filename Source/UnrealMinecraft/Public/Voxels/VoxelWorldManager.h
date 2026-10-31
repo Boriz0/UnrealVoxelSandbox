@@ -64,7 +64,7 @@ protected:
 
 private:
 	FVoxelEditStore EditStore;
-	void InvalidateNeighbors(FIntVector Chunk, const FIntVector* EditedLocal = nullptr);
+	void InvalidateNeighbors(FIntVector Chunk, FIntVector EditedLocal);
 	void UpdateStreaming(const FIntVector& PlayerChunk);
 	AVoxelChunkActor* SpawnChunk(const FIntVector& Coordinate);
 	void UploadCompletedBuilds();

@@ -14,6 +14,22 @@ struct FVoxelEditStore
 
 	FVoxelOverrides Snapshot(FIntVector Chunk) const { return Chunks.FindRef(Chunk); }
 
+	FVoxelOverrides SnapshotFace(FIntVector Chunk, int32 Axis, int32 Layer) const
+	{
+		FVoxelOverrides Result;
+		if (const FVoxelOverrides* Edits = Chunks.Find(Chunk))
+		{
+			for (const auto& Edit : *Edits)
+			{
+				if (Edit.Key[Axis] == Layer)
+				{
+					Result.Add(Edit.Key, Edit.Value);
+				}
+			}
+		}
+		return Result;
+	}
+
 private:
 	TMap<FIntVector, FVoxelOverrides> Chunks;
 };

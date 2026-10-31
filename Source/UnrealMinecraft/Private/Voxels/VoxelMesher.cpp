@@ -35,13 +35,30 @@ namespace
 	}
 }
 
-void FVoxelBorders::Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neighbor)
+int32 FVoxelBorders::TouchingLayer(int32 Sign)
+{
+	return Sign > 0 ? 0 : FVoxelChunkData::ChunkSize - 1;
+}
+
+int32 FVoxelBorders::PlaneIndex(int32 Axis, FIntVector Local)
+{
+	return Local[(Axis + 1) % 3] + FVoxelChunkData::ChunkSize * Local[(Axis + 2) % 3];
+}
+
+TBitArray<>& FVoxelBorders::InitFace(int32 Axis, int32 Sign)
 {
 	constexpr int32 Size = FVoxelChunkData::ChunkSize;
 	TBitArray<>& Face = Solid[2 * Axis + (Sign < 0)];
 	Face.Init(false, Size * Size);
+	return Face;
+}
+
+void FVoxelBorders::Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neighbor)
+{
+	constexpr int32 Size = FVoxelChunkData::ChunkSize;
+	TBitArray<>& Face = InitFace(Axis, Sign);
 	FIntVector Local = FIntVector::ZeroValue;
-	Local[Axis] = Sign > 0 ? 0 : Size - 1;
+	Local[Axis] = TouchingLayer(Sign);
 	for (int32 V = 0; V < Size; ++V)
 	{
 		for (int32 U = 0; U < Size; ++U)
@@ -56,7 +73,7 @@ void FVoxelBorders::Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neigh
 bool FVoxelBorders::IsSolid(FIntVector Outside, int32 Axis, int32 Sign) const
 {
 	const TBitArray<>& Face = Solid[2 * Axis + (Sign < 0)];
-	return Face.Num() && Face[Outside[(Axis + 1) % 3] + FVoxelChunkData::ChunkSize * Outside[(Axis + 2) % 3]];
+	return Face.Num() && Face[PlaneIndex(Axis, Outside)];
 }
 
 FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders)

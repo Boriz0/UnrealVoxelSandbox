@@ -9,6 +9,8 @@ enum class EVoxelType : uint8;
 class UNREALMINECRAFT_API FVoxelWorldGenerator
 {
 public:
+	explicit FVoxelWorldGenerator(int32 WorldSeed);
+	int32 GetSurfaceHeight(int64 WorldX, int64 WorldY) const;
 	static EVoxelType GetSolidTypeAtHeight(int64 WorldZ);
 	// Heights are measured in voxels; NoiseScale is noise units per voxel.
 	static constexpr int32 BaseTerrainHeight = 32;
@@ -24,4 +26,7 @@ public:
 	 * GrassMinHeight are Stone, below SnowMinHeight are Grass, otherwise Snow.
 	 */
 	static void GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates);
+
+private:
+	FVector2D NoiseOffset;
 };

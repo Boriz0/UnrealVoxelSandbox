@@ -9,14 +9,26 @@ EVoxelType FVoxelWorldGenerator::GetSolidTypeAtHeight(int64 WorldZ)
 		: (WorldZ < SnowMinHeight ? EVoxelType::Grass : EVoxelType::Snow);
 }
 
-void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates)
+FVoxelWorldGenerator::FVoxelWorldGenerator(int32 WorldSeed)
 {
 	// Recreate a local stream per chunk so offsets depend only on the world seed.
 	FRandomStream RandomStream(WorldSeed);
 	constexpr float MaxNoiseOffset = 10000.0f;
-	const double NoiseOffsetX = RandomStream.FRandRange(-MaxNoiseOffset, MaxNoiseOffset);
-	const double NoiseOffsetY = RandomStream.FRandRange(-MaxNoiseOffset, MaxNoiseOffset);
+	NoiseOffset.X = RandomStream.FRandRange(-MaxNoiseOffset, MaxNoiseOffset);
+	NoiseOffset.Y = RandomStream.FRandRange(-MaxNoiseOffset, MaxNoiseOffset);
+}
 
+int32 FVoxelWorldGenerator::GetSurfaceHeight(int64 WorldX, int64 WorldY) const
+{
+	const FVector2D NoisePosition(static_cast<double>(WorldX) * NoiseScale + NoiseOffset.X,
+		static_cast<double>(WorldY) * NoiseScale + NoiseOffset.Y);
+	const double Noise = FMath::PerlinNoise2D(NoisePosition);
+	return FMath::FloorToInt(BaseTerrainHeight + Noise * HeightAmplitude);
+}
+
+void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates)
+{
+	const FVoxelWorldGenerator Terrain(WorldSeed);
 	constexpr int32 ChunkSize = FVoxelChunkData::ChunkSize;
 	// Widen before multiplying to support negative and large chunk indices.
 	const int64 OriginX = static_cast<int64>(ChunkCoordinates.X) * ChunkSize;
@@ -29,11 +41,7 @@ void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 World
 	{
 		for (int32 X = 0; X < ChunkSize; ++X)
 		{
-			const FVector2D NoisePosition(
-				static_cast<double>(OriginX + X) * NoiseScale + NoiseOffsetX,
-				static_cast<double>(OriginY + Y) * NoiseScale + NoiseOffsetY);
-			const double Noise = FMath::PerlinNoise2D(NoisePosition);
-			SurfaceHeights[X + ChunkSize * Y] = FMath::FloorToInt(BaseTerrainHeight + Noise * HeightAmplitude);
+			SurfaceHeights[X + ChunkSize * Y] = Terrain.GetSurfaceHeight(OriginX + X, OriginY + Y);
 		}
 	}
 

@@ -4,9 +4,12 @@
 
 class FVoxelChunkData;
 
-/** Immutable during meshing. Each loaded neighbor contributes only its touching face. */
+/** Six one-voxel occupancy planes. Unset planes represent the exterior of the world. */
 struct FVoxelBorders
 {
+	static int32 TouchingLayer(int32 Sign);
+	static int32 PlaneIndex(int32 Axis, FIntVector Local);
+	TBitArray<>& InitFace(int32 Axis, int32 Sign);
 	void Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neighbor);
 	bool IsSolid(FIntVector Outside, int32 Axis, int32 Sign) const;
 

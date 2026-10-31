@@ -149,6 +149,7 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 			Snapshot = Chunk->ChunkData;
 		}
 		FVoxelBorders Borders;
+		TArray<FVoxelProceduralBorder> MissingBorders;
 		ForEachNeighbor(Coordinate, [&](FIntVector Neighbor, int32 Axis, int32 Sign)
 		{
 			const AVoxelChunkActor* Adjacent = SpawnedChunks.FindRef(Neighbor);
@@ -156,9 +157,14 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 			{
 				Borders.Capture(Axis, Sign, *Adjacent->GetChunkData());
 			}
+			else if (Neighbor.Z >= MinVerticalLayer && Neighbor.Z <= MaxVerticalLayer)
+			{
+				MissingBorders.Add(FVoxelProceduralBorder{Neighbor, Axis, Sign,
+					EditStore.SnapshotFace(Neighbor, Axis, FVoxelBorders::TouchingLayer(Sign))});
+			}
 		});
 		Request.Task = FVoxelChunkBuild::Launch(WorldSeed, Coordinate, MoveTemp(Snapshot),
-			Request.bRemesh ? FVoxelOverrides{} : EditStore.Snapshot(Coordinate), MoveTemp(Borders));
+			Request.bRemesh ? FVoxelOverrides{} : EditStore.Snapshot(Coordinate), MoveTemp(Borders), MoveTemp(MissingBorders));
 		Builds.Add(Coordinate, MoveTemp(Request));
 		++GeneratedThisFrame;
 	}
@@ -188,7 +194,6 @@ void AVoxelWorldManager::UpdateStreaming(const FIntVector& PlayerChunk)
 			|| It.Key().Z < MinVerticalLayer || It.Key().Z > MaxVerticalLayer)
 		{
 			DirtyChunks.Remove(It.Key());
-			InvalidateNeighbors(It.Key());
 			AVoxelChunkActor* Chunk = It.Value();
 			It.RemoveCurrent();
 			if (IsValid(Chunk))
@@ -272,27 +277,34 @@ bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
 		MarkChunkDirty(Chunk);
 		if (Previous == EVoxelType::Air || Type == EVoxelType::Air)
 		{
-			InvalidateNeighbors(Chunk, &Local);
+			InvalidateNeighbors(Chunk, Local);
 		}
 	}
 	return true;
 }
 
-void AVoxelWorldManager::InvalidateNeighbors(FIntVector Chunk, const FIntVector* EditedLocal)
+void AVoxelWorldManager::InvalidateNeighbors(FIntVector Chunk, FIntVector EditedLocal)
 {
 	ForEachNeighbor(Chunk, [&](FIntVector Neighbor, int32 Axis, int32 Sign)
 	{
-		if (EditedLocal && (*EditedLocal)[Axis] != (Sign < 0 ? 0 : FVoxelChunkData::ChunkSize - 1))
+		if (EditedLocal[Axis] != FVoxelBorders::TouchingLayer(-Sign))
 		{
 			return;
 		}
 		// Loaded chunks have revisions. An initial build has no Actor yet, so invalidate its snapshot directly.
-		if (!MarkChunkDirty(Neighbor))
+		const AVoxelChunkActor* Adjacent = SpawnedChunks.FindRef(Neighbor);
+		if (IsValid(Adjacent) && Adjacent->GetChunkData())
 		{
-			if (FBuildRequest* Pending = Builds.Find(Neighbor))
+			FIntVector Across = EditedLocal;
+			Across[Axis] = FVoxelBorders::TouchingLayer(Sign);
+			if (Adjacent->GetChunkData()->GetVoxel(Across) != EVoxelType::Air)
 			{
-				Pending->bObsolete = true;
+				MarkChunkDirty(Neighbor);
 			}
+		}
+		else if (FBuildRequest* Pending = Builds.Find(Neighbor))
+		{
+			Pending->bObsolete = true;
 		}
 	});
 }
@@ -347,10 +359,6 @@ void AVoxelWorldManager::UploadCompletedBuilds()
 		{
 			Chunk->ApplyBuild(Request.Task.GetResult());
 			DirtyChunks.Remove(Coordinate);
-			if (!Request.bRemesh)
-			{
-				InvalidateNeighbors(Coordinate);
-			}
 			++Uploads;
 		}
 		else
@@ -410,7 +418,6 @@ void AVoxelWorldManager::HandleChunkDestroyed(AActor* DestroyedActor)
 	{
 		if (It.Value() == DestroyedActor)
 		{
-			InvalidateNeighbors(It.Key());
 			DirtyChunks.Remove(It.Key());
 			It.RemoveCurrent();
 			bNeedsStreamingUpdate = true;
