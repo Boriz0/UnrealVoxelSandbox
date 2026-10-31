@@ -1,0 +1,23 @@
+
+# Unreal Engine generated files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+
+# Visual Studio generated files
+.vs/
+*.sln
+*.suo
+*.VC.db
+*.VC.opendb
+*.sdf
+*.opensdf
+
+# Generated lighting data
+*_BuiltData.uasset
+
+# Previous SVN metadata, if present
+.svn/
