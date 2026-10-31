@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 
 class FVoxelChunkData;
+enum class EVoxelType : uint8;
 
 /** Deterministic height-based terrain generation, independent of world objects. */
 class UNREALMINECRAFT_API FVoxelWorldGenerator
 {
 public:
+	static EVoxelType GetSolidTypeAtHeight(int64 WorldZ);
 	// Heights are measured in voxels; NoiseScale is noise units per voxel.
 	static constexpr int32 BaseTerrainHeight = 32;
 	static constexpr double NoiseScale = 0.01;

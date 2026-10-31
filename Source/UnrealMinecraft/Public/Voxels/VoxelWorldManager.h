@@ -17,6 +17,10 @@ class UNREALMINECRAFT_API AVoxelWorldManager : public AActor
 public:
 	AVoxelWorldManager();
 
+	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
+	bool GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutType) const;
+	bool SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
 	int32 WorldSeed = 12345;
 
@@ -59,6 +63,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	FVoxelEditStore EditStore;
+	void InvalidateNeighbors(FIntVector Chunk, const FIntVector* EditedLocal = nullptr);
 	void UpdateStreaming(const FIntVector& PlayerChunk);
 	AVoxelChunkActor* SpawnChunk(const FIntVector& Coordinate);
 	void UploadCompletedBuilds();

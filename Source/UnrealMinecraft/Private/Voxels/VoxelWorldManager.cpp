@@ -8,6 +8,38 @@
 #include "Voxels/VoxelChunkData.h"
 #include "Voxels/VoxelMesher.h"
 
+namespace
+{
+	void SplitWorldVoxel(FIntVector World, FIntVector& Chunk, FIntVector& Local)
+	{
+		constexpr int32 Size = FVoxelChunkData::ChunkSize;
+		for (int32 Axis = 0; Axis < 3; ++Axis)
+		{
+			const int32 Remainder = World[Axis] % Size;
+			Local[Axis] = Remainder < 0 ? Remainder + Size : Remainder;
+			Chunk[Axis] = World[Axis] / Size - (Remainder < 0);
+		}
+	}
+
+	template<typename F>
+	void ForEachNeighbor(FIntVector Chunk, F&& Visit)
+	{
+		for (int32 Axis = 0; Axis < 3; ++Axis)
+		{
+			for (int32 Sign : {-1, 1})
+			{
+				const int64 Next = static_cast<int64>(Chunk[Axis]) + Sign;
+				if (Next >= MIN_int32 && Next <= MAX_int32)
+				{
+					FIntVector Neighbor = Chunk;
+					Neighbor[Axis] = static_cast<int32>(Next);
+					Visit(Neighbor, Axis, Sign);
+				}
+			}
+		}
+	}
+}
+
 static void SortByDistance(TArray<FIntVector>& Coordinates, FIntVector PlayerChunk)
 {
 	Coordinates.Sort([PlayerChunk](const FIntVector& A, const FIntVector& B)
@@ -116,7 +148,17 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 			Request.Revision = Chunk->Revision;
 			Snapshot = Chunk->ChunkData;
 		}
-		Request.Task = FVoxelChunkBuild::Launch(WorldSeed, Coordinate, MoveTemp(Snapshot));
+		FVoxelBorders Borders;
+		ForEachNeighbor(Coordinate, [&](FIntVector Neighbor, int32 Axis, int32 Sign)
+		{
+			const AVoxelChunkActor* Adjacent = SpawnedChunks.FindRef(Neighbor);
+			if (IsValid(Adjacent) && Adjacent->GetChunkData())
+			{
+				Borders.Capture(Axis, Sign, *Adjacent->GetChunkData());
+			}
+		});
+		Request.Task = FVoxelChunkBuild::Launch(WorldSeed, Coordinate, MoveTemp(Snapshot),
+			Request.bRemesh ? FVoxelOverrides{} : EditStore.Snapshot(Coordinate), MoveTemp(Borders));
 		Builds.Add(Coordinate, MoveTemp(Request));
 		++GeneratedThisFrame;
 	}
@@ -146,6 +188,7 @@ void AVoxelWorldManager::UpdateStreaming(const FIntVector& PlayerChunk)
 			|| It.Key().Z < MinVerticalLayer || It.Key().Z > MaxVerticalLayer)
 		{
 			DirtyChunks.Remove(It.Key());
+			InvalidateNeighbors(It.Key());
 			AVoxelChunkActor* Chunk = It.Value();
 			It.RemoveCurrent();
 			if (IsValid(Chunk))
@@ -200,6 +243,60 @@ void AVoxelWorldManager::UpdateStreaming(const FIntVector& PlayerChunk)
 	SortByDistance(PendingLoads, PlayerChunk);
 }
 
+bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutType) const
+{
+	check(IsInGameThread());
+	FIntVector Chunk, Local;
+	SplitWorldVoxel(WorldVoxel, Chunk, Local);
+	const AVoxelChunkActor* Actor = SpawnedChunks.FindRef(Chunk);
+	const FVoxelChunkData* Data = IsValid(Actor) ? Actor->GetChunkData() : nullptr;
+	OutType = Data ? Data->GetVoxel(Local) : EVoxelType::Air;
+	return Data != nullptr;
+}
+
+bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
+{
+	check(IsInGameThread());
+	FIntVector Chunk, Local;
+	SplitWorldVoxel(WorldVoxel, Chunk, Local);
+	AVoxelChunkActor* Actor = SpawnedChunks.FindRef(Chunk);
+	if (!IsValid(Actor) || !Actor->GetChunkData() || Type > EVoxelType::Snow)
+	{
+		return false;
+	}
+	const EVoxelType Previous = Actor->ChunkData->GetVoxel(Local);
+	if (Previous != Type)
+	{
+		Actor->ChunkData->SetVoxel(Local, Type);
+		EditStore.Record(Chunk, Local, Type);
+		MarkChunkDirty(Chunk);
+		if (Previous == EVoxelType::Air || Type == EVoxelType::Air)
+		{
+			InvalidateNeighbors(Chunk, &Local);
+		}
+	}
+	return true;
+}
+
+void AVoxelWorldManager::InvalidateNeighbors(FIntVector Chunk, const FIntVector* EditedLocal)
+{
+	ForEachNeighbor(Chunk, [&](FIntVector Neighbor, int32 Axis, int32 Sign)
+	{
+		if (EditedLocal && (*EditedLocal)[Axis] != (Sign < 0 ? 0 : FVoxelChunkData::ChunkSize - 1))
+		{
+			return;
+		}
+		// Loaded chunks have revisions. An initial build has no Actor yet, so invalidate its snapshot directly.
+		if (!MarkChunkDirty(Neighbor))
+		{
+			if (FBuildRequest* Pending = Builds.Find(Neighbor))
+			{
+				Pending->bObsolete = true;
+			}
+		}
+	});
+}
+
 bool AVoxelWorldManager::MarkChunkDirty(FIntVector Coordinate)
 {
 	check(IsInGameThread());
@@ -250,6 +347,10 @@ void AVoxelWorldManager::UploadCompletedBuilds()
 		{
 			Chunk->ApplyBuild(Request.Task.GetResult());
 			DirtyChunks.Remove(Coordinate);
+			if (!Request.bRemesh)
+			{
+				InvalidateNeighbors(Coordinate);
+			}
 			++Uploads;
 		}
 		else
@@ -309,6 +410,7 @@ void AVoxelWorldManager::HandleChunkDestroyed(AActor* DestroyedActor)
 	{
 		if (It.Value() == DestroyedActor)
 		{
+			InvalidateNeighbors(It.Key());
 			DirtyChunks.Remove(It.Key());
 			It.RemoveCurrent();
 			bNeedsStreamingUpdate = true;

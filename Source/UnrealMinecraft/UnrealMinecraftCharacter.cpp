@@ -49,6 +49,7 @@ void AUnrealMinecraftCharacter::SetupPlayerInputComponent(UInputComponent* Playe
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
+		BindVoxelInput(EnhancedInputComponent);
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AUnrealMinecraftCharacter::DoJumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AUnrealMinecraftCharacter::DoJumpEnd);

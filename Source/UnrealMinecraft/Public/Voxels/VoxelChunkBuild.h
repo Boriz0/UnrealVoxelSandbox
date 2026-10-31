@@ -3,6 +3,7 @@
 #include "Tasks/Task.h"
 #include "Voxels/VoxelChunkData.h"
 #include "Voxels/VoxelMesher.h"
+#include "Voxels/VoxelEditStore.h"
 
 /** Worker-owned output. GeneratedData is populated only for a newly generated chunk. */
 struct FVoxelChunkBuild
@@ -11,5 +12,6 @@ struct FVoxelChunkBuild
 	FVoxelMeshData Mesh;
 
 	using FTask = UE::Tasks::TTask<FVoxelChunkBuild>;
-	static FTask Launch(int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot = {});
+	static FTask Launch(int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot = {},
+		FVoxelOverrides Edits = {}, FVoxelBorders Borders = {});
 };

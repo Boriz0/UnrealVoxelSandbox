@@ -3,6 +3,12 @@
 #include "Math/RandomStream.h"
 #include "Voxels/VoxelChunkData.h"
 
+EVoxelType FVoxelWorldGenerator::GetSolidTypeAtHeight(int64 WorldZ)
+{
+	return WorldZ < GrassMinHeight ? EVoxelType::Stone
+		: (WorldZ < SnowMinHeight ? EVoxelType::Grass : EVoxelType::Snow);
+}
+
 void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates)
 {
 	// Recreate a local stream per chunk so offsets depend only on the world seed.
@@ -35,8 +41,7 @@ void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 World
 	for (int32 Z = 0; Z < ChunkSize; ++Z)
 	{
 		const int64 WorldZ = OriginZ + Z;
-		const EVoxelType SolidType = WorldZ < GrassMinHeight ? EVoxelType::Stone
-			: (WorldZ < SnowMinHeight ? EVoxelType::Grass : EVoxelType::Snow);
+		const EVoxelType SolidType = GetSolidTypeAtHeight(WorldZ);
 
 		for (int32 Y = 0; Y < ChunkSize; ++Y)
 		{

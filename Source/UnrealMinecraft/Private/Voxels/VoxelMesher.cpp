@@ -23,16 +23,6 @@ namespace
 		{ FIntVector(0, 0, -1), FVector(0, 0, -1), FVector(-1, 0, 0), FVector(0, 1, 0) }
 	};
 
-	EVoxelType GetNeighborVoxel(const FVoxelChunkData& ChunkData, const FIntVector& Coordinates)
-	{
-		if (!FVoxelChunkData::IsValidCoordinate(Coordinates))
-		{
-			// Future chunk-neighbor sampling belongs here.
-			return EVoxelType::Air;
-		}
-		return ChunkData.GetVoxel(Coordinates);
-	}
-
 	FLinearColor GetVoxelColor(EVoxelType VoxelType)
 	{
 		switch (VoxelType)
@@ -45,7 +35,31 @@ namespace
 	}
 }
 
-FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData)
+void FVoxelBorders::Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neighbor)
+{
+	constexpr int32 Size = FVoxelChunkData::ChunkSize;
+	TBitArray<>& Face = Solid[2 * Axis + (Sign < 0)];
+	Face.Init(false, Size * Size);
+	FIntVector Local = FIntVector::ZeroValue;
+	Local[Axis] = Sign > 0 ? 0 : Size - 1;
+	for (int32 V = 0; V < Size; ++V)
+	{
+		for (int32 U = 0; U < Size; ++U)
+		{
+			Local[(Axis + 1) % 3] = U;
+			Local[(Axis + 2) % 3] = V;
+			Face[U + Size * V] = Neighbor.GetVoxel(Local) != EVoxelType::Air;
+		}
+	}
+}
+
+bool FVoxelBorders::IsSolid(FIntVector Outside, int32 Axis, int32 Sign) const
+{
+	const TBitArray<>& Face = Solid[2 * Axis + (Sign < 0)];
+	return Face.Num() && Face[Outside[(Axis + 1) % 3] + FVoxelChunkData::ChunkSize * Outside[(Axis + 2) % 3]];
+}
+
+FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders)
 {
 	FVoxelMeshData Mesh;
 	for (int32 Z = 0; Z < FVoxelChunkData::ChunkSize; ++Z)
@@ -65,7 +79,18 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData)
 				const FVector Center = (FVector(X, Y, Z) + FVector(0.5)) * VoxelSize;
 				for (const FFaceDefinition& Face : Faces)
 				{
-					if (GetNeighborVoxel(ChunkData, Coordinates + Face.NeighborOffset) != EVoxelType::Air)
+					const FIntVector Adjacent = Coordinates + Face.NeighborOffset;
+					bool bSolid;
+					if (FVoxelChunkData::IsValidCoordinate(Adjacent))
+					{
+						bSolid = ChunkData.GetVoxel(Adjacent) != EVoxelType::Air;
+					}
+					else
+					{
+						const int32 Axis = Face.NeighborOffset.X ? 0 : (Face.NeighborOffset.Y ? 1 : 2);
+						bSolid = Borders.IsSolid(Adjacent, Axis, Face.NeighborOffset[Axis]);
+					}
+					if (bSolid)
 					{
 						continue;
 					}
