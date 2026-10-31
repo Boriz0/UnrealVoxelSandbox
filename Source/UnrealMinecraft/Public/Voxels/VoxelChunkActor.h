@@ -34,9 +34,17 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Voxel")
 	void GenerateChunk();
 
+	/** Game-thread view, valid until the next generation or unload. */
+	const FVoxelChunkData* GetChunkData() const { return ChunkData.GetPtrOrNull(); }
+
 protected:
 	virtual void BeginPlay() override;
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
-	FVoxelChunkData ChunkData;
+	friend class AVoxelWorldManager;
+	void ApplyBuild(struct FVoxelChunkBuild& Build);
+	uint64 Revision = 0;
+	TOptional<FVoxelChunkData> ChunkData;
 };

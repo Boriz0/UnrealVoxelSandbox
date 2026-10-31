@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Voxels/VoxelChunkBuild.h"
 #include "VoxelWorldManager.generated.h"
 
 class AVoxelChunkActor;
@@ -30,6 +31,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel", meta = (ClampMin = "1", UIMin = "1"))
 	int32 MaxChunksPerFrame = 2;
 
+	/** Running jobs and completed meshes waiting for upload share this limit. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel", meta = (ClampMin = "1"))
+	int32 MaxConcurrentTasks = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel", meta = (ClampMin = "1"))
+	int32 MaxMeshUploadsPerFrame = 1;
+
+	/** Schedule a mesh from the loaded chunk's current voxels. Game thread only. */
+	UFUNCTION(BlueprintCallable, Category = "Voxel")
+	bool MarkChunkDirty(FIntVector Coordinate);
+
 	/** Inclusive vertical layer range. Negative layers are supported. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
 	int32 MinVerticalLayer = 0;
@@ -48,7 +60,19 @@ protected:
 
 private:
 	void UpdateStreaming(const FIntVector& PlayerChunk);
-	void SpawnChunk(const FIntVector& Coordinate);
+	AVoxelChunkActor* SpawnChunk(const FIntVector& Coordinate);
+	void UploadCompletedBuilds();
+	// PendingLoads -> Builds (running or ready) -> SpawnedChunks. A remesh keeps its Actor.
+	struct FBuildRequest
+	{
+		FVoxelChunkBuild::FTask Task;
+		TWeakObjectPtr<AVoxelChunkActor> Source;
+		uint64 Revision = 0;
+		bool bRemesh = false;
+		bool bObsolete = false;
+	};
+	TMap<FIntVector, FBuildRequest> Builds;
+	TSet<FIntVector> DirtyChunks;
 	bool IsWithinHorizontalRadius(const FIntVector& Coordinate, int32 Radius) const;
 
 	TArray<FIntVector> PendingLoads;
