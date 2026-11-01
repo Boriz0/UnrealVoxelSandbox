@@ -29,7 +29,14 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	Mine->bConsumeInput = Place->bConsumeInput = false;
 	VoxelContext->MapKey(Mine, EKeys::LeftMouseButton);
 	VoxelContext->MapKey(Place, EKeys::RightMouseButton);
+	UInputAction* SpeedUp = NewObject<UInputAction>(VoxelContext);
+	UInputAction* SpeedDown = NewObject<UInputAction>(VoxelContext);
+	SpeedUp->ValueType = SpeedDown->ValueType = EInputActionValueType::Boolean;
+	VoxelContext->MapKey(SpeedUp, EKeys::MouseScrollUp);
+	VoxelContext->MapKey(SpeedDown, EKeys::MouseScrollDown);
 	BoundVoxelInput = Input;
+	VoxelBindingHandles.Add(Input->BindAction(SpeedUp, ETriggerEvent::Triggered, this, &ThisClass::IncreaseRunningSpeed).GetHandle());
+	VoxelBindingHandles.Add(Input->BindAction(SpeedDown, ETriggerEvent::Triggered, this, &ThisClass::DecreaseRunningSpeed).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(Mine, ETriggerEvent::Triggered, this, &ThisClass::UpdateMining).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(Mine, ETriggerEvent::Completed, this, &ThisClass::ResetMining).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(Mine, ETriggerEvent::Canceled, this, &ThisClass::ResetMining).GetHandle());

@@ -6,9 +6,11 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
+#include "Engine/Engine.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UnrealMinecraft.h"
+#include "UnrealMinecraftPlayerController.h"
 
 AUnrealMinecraftCharacter::AUnrealMinecraftCharacter()
 {
@@ -67,6 +69,41 @@ void AUnrealMinecraftCharacter::SetupPlayerInputComponent(UInputComponent* Playe
 	}
 }
 
+
+void AUnrealMinecraftCharacter::IncreaseRunningSpeed()
+{
+	ScaleRunningSpeed(1.2f);
+}
+
+void AUnrealMinecraftCharacter::DecreaseRunningSpeed()
+{
+	ScaleRunningSpeed(0.8f);
+}
+
+void AUnrealMinecraftCharacter::ScaleRunningSpeed(float Multiplier)
+{
+	const auto* PlayerController = Cast<AUnrealMinecraftPlayerController>(GetController());
+	if (!PlayerController || PlayerController->SessionState != EVoxelSessionState::Playing)
+	{
+		return;
+	}
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	const float NewSpeed = Movement->MaxWalkSpeed * Multiplier;
+	const float NewAcceleration = Movement->MaxAcceleration * Multiplier;
+	if (FMath::IsFinite(NewSpeed) && NewSpeed > 0.f
+		&& FMath::IsFinite(NewAcceleration) && NewAcceleration >= 0.f)
+	{
+		Movement->MaxWalkSpeed = NewSpeed;
+		Movement->MaxAcceleration = NewAcceleration;
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(static_cast<uint64>(GetUniqueID()), 3.f, FColor::Yellow,
+				FString::Printf(TEXT("Max speed: %.1f km/h | Acceleration: %.2f g"),
+					Movement->MaxWalkSpeed * 0.036f, Movement->MaxAcceleration / 980.665f));
+		}
+	}
+}
 
 void AUnrealMinecraftCharacter::MoveInput(const FInputActionValue& Value)
 {

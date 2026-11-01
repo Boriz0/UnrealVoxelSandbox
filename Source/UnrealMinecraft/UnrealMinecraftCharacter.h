@@ -101,6 +101,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void IncreaseRunningSpeed();
+	void DecreaseRunningSpeed();
+	void ScaleRunningSpeed(float Multiplier);
+
 	void BindVoxelInput(UEnhancedInputComponent* Input);
 	void RemoveVoxelInput();
 	void UpdateMining();
