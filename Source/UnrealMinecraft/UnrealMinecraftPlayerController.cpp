@@ -39,6 +39,10 @@ void AUnrealMinecraftPlayerController::BeginPlay()
 		}
 
 	}
+	if (IsLocalPlayerController())
+	{
+		InitializeMenu();
+	}
 }
 
 void AUnrealMinecraftPlayerController::SetupInputComponent()
@@ -48,6 +52,8 @@ void AUnrealMinecraftPlayerController::SetupInputComponent()
 	// only add IMCs for local player controllers
 	if (IsLocalPlayerController())
 	{
+		FInputKeyBinding& Escape = InputComponent->BindKey(EKeys::Escape, IE_Pressed, this, &ThisClass::HandleEscape);
+		Escape.bExecuteWhenPaused = true;
 		// Add Input Mapping Context
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 		{

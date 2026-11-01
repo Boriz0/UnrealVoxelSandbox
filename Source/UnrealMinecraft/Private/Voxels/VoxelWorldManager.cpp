@@ -1,6 +1,7 @@
 #include "Voxels/VoxelWorldManager.h"
 
 #include "Engine/World.h"
+#include "ProceduralMeshComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UnrealMinecraft.h"
@@ -97,8 +98,8 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	const APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
-	if (!IsValid(PlayerPawn))
+	const AActor* Source = bPreview ? PreviewCamera.Get() : UGameplayStatics::GetPlayerPawn(this, 0);
+	if (!IsValid(Source))
 	{
 		for (auto& Pair : Builds)
 		{
@@ -112,7 +113,7 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 	}
 
 	const double ChunkWorldSize = FVoxelChunkData::ChunkSize * FVoxelMesher::VoxelSize;
-	const FVector PlayerLocation = PlayerPawn->GetActorLocation();
+	const FVector PlayerLocation = Source->GetActorLocation();
 	// Floor, not truncation: -1 cm belongs to chunk -1, not chunk 0.
 	const FIntVector PlayerChunk(
 		FMath::FloorToInt(PlayerLocation.X / ChunkWorldSize),
@@ -262,6 +263,10 @@ bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutTyp
 bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
 {
 	check(IsInGameThread());
+	if (bPreview)
+	{
+		return false;
+	}
 	FIntVector Chunk, Local;
 	SplitWorldVoxel(WorldVoxel, Chunk, Local);
 	AVoxelChunkActor* Actor = SpawnedChunks.FindRef(Chunk);
@@ -429,6 +434,52 @@ void AVoxelWorldManager::HandleChunkDestroyed(AActor* DestroyedActor)
 void AVoxelWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	SetActorTickEnabled(false);
+	ClearStreamedWorld();
+	Super::EndPlay(EndPlayReason);
+}
+
+void AVoxelWorldManager::SetMenuPreview(AActor* Camera)
+{
+	PreviewCamera = Camera;
+	bPreview = true;
+	bNeedsStreamingUpdate = true;
+}
+
+void AVoxelWorldManager::StartFreshWorld(int32 Seed)
+{
+	ClearStreamedWorld();
+	EditStore = FVoxelEditStore{};
+	WorldSeed = Seed;
+	bPreview = false;
+	PreviewCamera.Reset();
+}
+
+bool AVoxelWorldManager::IsInitialGridReady() const
+{
+	return !bPreview && bHasStreamingCenter && SpawnedChunks.Num() > 0 && !bNeedsStreamingUpdate
+		&& PendingLoads.IsEmpty() && Builds.IsEmpty();
+}
+
+bool AVoxelWorldManager::HasSurfaceCollision(const FVector& Surface) const
+{
+	constexpr double Size = FVoxelMesher::VoxelSize;
+	constexpr double Span = Size * FVoxelChunkData::ChunkSize;
+	const FIntVector Coordinate(FMath::FloorToInt(Surface.X / Span), FMath::FloorToInt(Surface.Y / Span),
+		FMath::FloorToInt((Surface.Z - 1.) / Span));
+	const AVoxelChunkActor* Chunk = SpawnedChunks.FindRef(Coordinate);
+	if (!IsValid(Chunk))
+	{
+		return false;
+	}
+	const FVector Center((FMath::FloorToDouble(Surface.X / Size) + 0.5) * Size,
+		(FMath::FloorToDouble(Surface.Y / Size) + 0.5) * Size, Surface.Z);
+	FHitResult Hit;
+	return Chunk->ProceduralMesh->LineTraceComponent(Hit, Center + FVector(0, 0, 5), Center - FVector(0, 0, 5),
+		FCollisionQueryParams(SCENE_QUERY_STAT(MenuSpawnGround), true));
+}
+
+void AVoxelWorldManager::ClearStreamedWorld()
+{
 	// Workers own their inputs. Dropping these handles cannot schedule an upload.
 	Builds.Empty();
 	DirtyChunks.Empty();
@@ -445,5 +496,4 @@ void AVoxelWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		}
 	}
 	SpawnedChunks.Empty();
-	Super::EndPlay(EndPlayReason);
 }

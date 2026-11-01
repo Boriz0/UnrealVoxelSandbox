@@ -17,6 +17,11 @@ class UNREALMINECRAFT_API AVoxelWorldManager : public AActor
 public:
 	AVoxelWorldManager();
 
+	void SetMenuPreview(AActor* Camera);
+	void StartFreshWorld(int32 Seed);
+	bool IsInitialGridReady() const;
+	bool HasSurfaceCollision(const FVector& Surface) const;
+
 	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
 	bool GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutType) const;
 	bool SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type);
@@ -63,6 +68,9 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void ClearStreamedWorld();
+	TWeakObjectPtr<AActor> PreviewCamera;
+	bool bPreview = false;
 	FVoxelEditStore EditStore;
 	void InvalidateNeighbors(FIntVector Chunk, FIntVector EditedLocal);
 	void UpdateStreaming(const FIntVector& PlayerChunk);

@@ -8,6 +8,19 @@
 
 class UInputMappingContext;
 class UUserWidget;
+class USessionMenuWidget;
+class AMenuCamera;
+class AVoxelWorldManager;
+class ACharacter;
+
+UENUM(BlueprintType)
+enum class EVoxelSessionState : uint8
+{
+	MainMenu, Loading, Playing, Paused
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVoxelSessionStateChanged, EVoxelSessionState, State);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FVoxelSessionMessage, FText, Message);
 
 /**
  *  Simple first person Player Controller
@@ -24,7 +37,44 @@ public:
 	/** Constructor */
 	AUnrealMinecraftPlayerController();
 
+	UPROPERTY(BlueprintReadOnly, Category="Session")
+	EVoxelSessionState SessionState = EVoxelSessionState::MainMenu;
+
+	UPROPERTY(BlueprintAssignable, Category="Session")
+	FVoxelSessionStateChanged OnSessionStateChanged;
+	UPROPERTY(BlueprintAssignable, Category="Session")
+	FVoxelSessionMessage OnLoadingStatusChanged;
+	UPROPERTY(BlueprintAssignable, Category="Session")
+	FVoxelSessionMessage OnSessionOperationFailed;
+	UPROPERTY(BlueprintReadOnly, Category="Session")
+	FText LoadingStatus;
+	UPROPERTY(BlueprintReadOnly, Category="Session")
+	FText LastSessionError;
+
+	UFUNCTION(BlueprintPure, Category="Session")
+	bool HasCompatibleSave() const;
+	UFUNCTION(BlueprintPure, Category="Session")
+	bool IsPersistenceAvailable() const;
+	UFUNCTION(BlueprintCallable, Category="Session")
+	bool ContinueSession();
+	UFUNCTION(BlueprintCallable, Category="Session")
+	bool StartNewGame(int32 Seed);
+	UFUNCTION(BlueprintCallable, Category="Session")
+	bool TogglePauseMenu();
+	/** An active session cannot be saved yet. Pass true only after explicit discard confirmation. */
+	UFUNCTION(BlueprintCallable, Category="Session")
+	bool ExitGame(bool bDiscardUnsavedSession = false);
+	UFUNCTION(BlueprintPure, Category="Session")
+	static bool TryParseWorldSeed(const FString& Text, int32& Seed);
+	UFUNCTION(BlueprintCallable, Category="Session")
+	static int32 GenerateWorldSeed();
+
 protected:
+	UPROPERTY(EditDefaultsOnly, Category="Session")
+	TSubclassOf<USessionMenuWidget> SessionMenuClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<USessionMenuWidget> SessionMenu;
 
 	/** Input Mapping Contexts */
 	UPROPERTY(EditAnywhere, Category="Input|Input Mappings")
@@ -48,10 +98,35 @@ protected:
 
 	/** Gameplay initialization */
 	virtual void BeginPlay() override;
+	virtual void SetPawn(APawn* InPawn) override;
+	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 
 	/** Input mapping context setup */
 	virtual void SetupInputComponent() override;
 
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
+
+private:
+	void InitializeMenu();
+	void ApplyState(EVoxelSessionState State);
+	void ApplyPawnControls();
+	void ReleasePawnControls();
+	void HandleEscape();
+	void PollLoading();
+	void SetLoadingStatus(const FText& Status);
+	bool Fail(const FText& Reason);
+	void ReturnToMenu(const FText& Reason);
+	UPROPERTY(Transient)
+	TObjectPtr<AMenuCamera> MenuCamera;
+	TWeakObjectPtr<AVoxelWorldManager> WorldManager;
+	TWeakObjectPtr<ACharacter> FrozenCharacter;
+	uint8 PreviousMovementMode = 0;
+	uint8 PreviousCustomMode = 0;
+	bool bMenuInitialized = false;
+	bool bOwnsCamera = false;
+	FVector SpawnAnchor = FVector::ZeroVector;
+	double GroundZ = 0;
+	double LoadingDeadline = 0;
+	FTimerHandle LoadingTimer;
 };
