@@ -14,6 +14,18 @@ struct FVoxelEditStore
 
 	FVoxelOverrides Snapshot(FIntVector Chunk) const { return Chunks.FindRef(Chunk); }
 
+	void Export(TMap<FIntVector, uint8>& WorldEdits) const
+	{
+		WorldEdits.Reset();
+		for (const auto& Chunk : Chunks)
+		{
+			for (const auto& Edit : Chunk.Value)
+			{
+				WorldEdits.Add(Chunk.Key * FVoxelChunkData::ChunkSize + Edit.Key, static_cast<uint8>(Edit.Value));
+			}
+		}
+	}
+
 	FVoxelOverrides SnapshotFace(FIntVector Chunk, int32 Axis, int32 Layer) const
 	{
 		FVoxelOverrides Result;

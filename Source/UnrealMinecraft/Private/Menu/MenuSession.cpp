@@ -9,10 +9,13 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Menu/MenuCamera.h"
 #include "Menu/SessionMenuWidget.h"
+#include "PlatformFeatures.h"
+#include "UnrealMinecraft.h"
 #include "TimerManager.h"
 #include "Voxels/VoxelChunkActor.h"
 #include "Voxels/VoxelWorldGenerator.h"
 #include "Voxels/VoxelWorldManager.h"
+#include "Voxels/VoxelWorldSave.h"
 
 #define LOCTEXT_NAMESPACE "VoxelMenu"
 
@@ -155,12 +158,28 @@ void AUnrealMinecraftPlayerController::ApplyState(EVoxelSessionState State)
 	OnSessionStateChanged.Broadcast(State);
 }
 
-bool AUnrealMinecraftPlayerController::HasCompatibleSave() const { return false; }
-bool AUnrealMinecraftPlayerController::IsPersistenceAvailable() const { return false; }
+bool AUnrealMinecraftPlayerController::HasCompatibleSave() const { return UVoxelWorldSave::LoadLatest() != nullptr; }
+bool AUnrealMinecraftPlayerController::HasExistingSave() const { return UVoxelWorldSave::Exists(); }
+bool AUnrealMinecraftPlayerController::IsPersistenceAvailable() const { return IPlatformFeaturesModule::Get().GetSaveGameSystem() != nullptr; }
+
+bool AUnrealMinecraftPlayerController::SaveCheckpoint()
+{
+	if (!WorldManager.IsValid() || !GetPawn())
+	{
+		return Fail(LOCTEXT("MissingSaveSource", "Cannot save without the active world and player."));
+	}
+	auto* Save = NewObject<UVoxelWorldSave>();
+	Save->Seed = WorldManager->WorldSeed;
+	Save->PlayerTransform = GetPawn()->GetActorTransform();
+	Save->ViewRotation = GetControlRotation();
+	WorldManager->ExportEdits(Save->Edits);
+	return Save->Commit();
+}
 
 bool AUnrealMinecraftPlayerController::Fail(const FText& Reason)
 {
 	LastSessionError = Reason;
+	UE_LOG(LogUnrealMinecraft, Warning, TEXT("Session operation failed: %s"), *Reason.ToString());
 	OnSessionOperationFailed.Broadcast(Reason);
 	return false;
 }
@@ -212,18 +231,24 @@ bool AUnrealMinecraftPlayerController::StartNewGame(int32 Seed)
 		return Fail(LOCTEXT("CannotRestartPaused", "Could not leave pause to start the new world."));
 	}
 	GroundZ = (Surface + 1) * VoxelSize;
-	Manager->StartFreshWorld(Seed);
+	Manager->StartWorld(Seed, {});
 	// Loading streams from the pawn at the spawn column, while the view remains on the camera.
 	const float HalfHeight = GetPawn()->GetSimpleCollisionHalfHeight();
 	FVector Location = SpawnAnchor;
 	Location.Z = FMath::Max(Location.Z, GroundZ + HalfHeight + 5.);
 	GetPawn()->SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
+	BeginLoading(false);
+	return true;
+}
+
+void AUnrealMinecraftPlayerController::BeginLoading(bool bRestore)
+{
+	bRestoringCheckpoint = bRestore;
 	LastSessionError = FText::GetEmpty();
 	LoadingDeadline = FPlatformTime::Seconds() + 60.0;
 	GetWorldTimerManager().SetTimer(LoadingTimer, this, &ThisClass::PollLoading, 0.1f, true);
 	SetLoadingStatus(LOCTEXT("Generating", "Generating spawn terrain"));
 	ApplyState(EVoxelSessionState::Loading);
-	return true;
 }
 
 void AUnrealMinecraftPlayerController::PollLoading()
@@ -236,7 +261,10 @@ void AUnrealMinecraftPlayerController::PollLoading()
 	// Only the spawn column must be ready. The configured grid can keep streaming during play.
 	SetLoadingStatus(LOCTEXT("Collision", "Preparing spawn collision"));
 	// Async cooking can finish after the last mesh upload. Trace only the terrain at this column.
-	if (!WorldManager->HasSurfaceCollision(FVector(SpawnAnchor.X, SpawnAnchor.Y, GroundZ)))
+	const bool bReady = bRestoringCheckpoint
+		? WorldManager->IsRestoreAreaReady(GetPawn()->GetActorLocation(), GetPawn()->GetSimpleCollisionRadius())
+		: WorldManager->HasSurfaceCollision(FVector(SpawnAnchor.X, SpawnAnchor.Y, GroundZ));
+	if (!bReady)
 	{
 		return;
 	}
@@ -246,6 +274,11 @@ void AUnrealMinecraftPlayerController::PollLoading()
 		return;
 	}
 	GetWorldTimerManager().ClearTimer(LoadingTimer);
+	if (!bRestoringCheckpoint && !SaveCheckpoint())
+	{
+		ReturnToMenu(LOCTEXT("InitialSaveFailed", "Could not save the new world. Check the Output Log and available disk space."));
+		return;
+	}
 	SetLoadingStatus(FText::GetEmpty());
 	ApplyState(EVoxelSessionState::Playing);
 }
@@ -266,7 +299,16 @@ bool AUnrealMinecraftPlayerController::ContinueSession()
 {
 	if (SessionState == EVoxelSessionState::MainMenu)
 	{
-		return Fail(LOCTEXT("NoSave", "Disk save/load is unavailable. Start a new game to play."));
+		const auto* Save = UVoxelWorldSave::LoadLatest();
+		if (!Save || !WorldManager.IsValid() || !WorldManager->IsActorTickEnabled() || !GetPawn())
+		{
+			return Fail(LOCTEXT("NoSave", "Cannot load the world. Check the save, player, and world manager in the Output Log."));
+		}
+		WorldManager->StartWorld(Save->Seed, Save->Edits);
+		GetPawn()->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		SetControlRotation(Save->ViewRotation);
+		BeginLoading(true);
+		return true;
 	}
 	if (SessionState != EVoxelSessionState::Paused || !SetPause(false))
 	{
@@ -305,9 +347,9 @@ bool AUnrealMinecraftPlayerController::ExitGame(bool bDiscardUnsavedSession)
 	{
 		return Fail(LOCTEXT("Busy", "Wait for world initialization before exiting."));
 	}
-	if (SessionState != EVoxelSessionState::MainMenu && !bDiscardUnsavedSession)
+	if (SessionState != EVoxelSessionState::MainMenu && !bDiscardUnsavedSession && !SaveCheckpoint())
 	{
-		return Fail(LOCTEXT("Unsaved", "Disk saving is unavailable. Your session is still open. Resume to keep playing."));
+		return Fail(LOCTEXT("Unsaved", "Could not save your progress. Your session is still open. Check the Output Log and try again."));
 	}
 	UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
 	return true;

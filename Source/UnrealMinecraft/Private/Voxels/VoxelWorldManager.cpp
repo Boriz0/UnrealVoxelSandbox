@@ -2,6 +2,7 @@
 
 #include "Engine/World.h"
 #include "ProceduralMeshComponent.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 #include "UnrealMinecraft.h"
@@ -440,15 +441,23 @@ void AVoxelWorldManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AVoxelWorldManager::SetMenuPreview(AActor* Camera)
 {
+	ClearStreamedWorld();
+	EditStore = {};
 	PreviewCamera = Camera;
 	bPreview = true;
 	bNeedsStreamingUpdate = true;
 }
 
-void AVoxelWorldManager::StartFreshWorld(int32 Seed)
+void AVoxelWorldManager::StartWorld(int32 Seed, const TMap<FIntVector, uint8>& WorldEdits)
 {
 	ClearStreamedWorld();
 	EditStore = FVoxelEditStore{};
+	for (const auto& Edit : WorldEdits)
+	{
+		FIntVector Chunk, Local;
+		SplitWorldVoxel(Edit.Key, Chunk, Local);
+		EditStore.Record(Chunk, Local, static_cast<EVoxelType>(Edit.Value));
+	}
 	WorldSeed = Seed;
 	bPreview = false;
 	PreviewCamera.Reset();
@@ -458,6 +467,37 @@ bool AVoxelWorldManager::IsInitialGridReady() const
 {
 	return !bPreview && bHasStreamingCenter && SpawnedChunks.Num() > 0 && !bNeedsStreamingUpdate
 		&& PendingLoads.IsEmpty() && Builds.IsEmpty();
+}
+
+bool AVoxelWorldManager::IsRestoreAreaReady(FVector Location, double CapsuleRadius) const
+{
+	// A saved player can be underground, airborne, or above a player-built platform.
+	// Wait for the loaded columns under the capsule, including their async collision cooks.
+	const double Span = FVoxelChunkData::ChunkSize * FVoxelMesher::VoxelSize;
+	for (int32 X = FMath::FloorToInt((Location.X - CapsuleRadius) / Span); X <= FMath::FloorToInt((Location.X + CapsuleRadius) / Span); ++X)
+	{
+		for (int32 Y = FMath::FloorToInt((Location.Y - CapsuleRadius) / Span); Y <= FMath::FloorToInt((Location.Y + CapsuleRadius) / Span); ++Y)
+		{
+			if (!IsWithinHorizontalRadius(FIntVector(X, Y, 0), HorizontalRadius))
+			{
+				continue;
+			}
+			for (int64 Z = MinVerticalLayer; Z <= MaxVerticalLayer; ++Z)
+			{
+				const AVoxelChunkActor* Chunk = SpawnedChunks.FindRef(FIntVector(X, Y, static_cast<int32>(Z)));
+				if (!IsValid(Chunk) || !Chunk->GetChunkData())
+				{
+					return false;
+				}
+				const auto* Section = Chunk->ProceduralMesh->GetProcMeshSection(0);
+				if (Section && !Section->ProcIndexBuffer.IsEmpty() && Chunk->ProceduralMesh->GetBodySetup()->TriMeshGeometries.IsEmpty())
+				{
+					return false;
+				}
+			}
+		}
+	}
+	return bHasStreamingCenter;
 }
 
 bool AVoxelWorldManager::HasSurfaceCollision(const FVector& Surface) const

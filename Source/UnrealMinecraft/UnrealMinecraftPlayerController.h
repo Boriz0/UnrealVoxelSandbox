@@ -53,6 +53,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Session")
 	bool HasCompatibleSave() const;
+	bool HasExistingSave() const;
 	UFUNCTION(BlueprintPure, Category="Session")
 	bool IsPersistenceAvailable() const;
 	UFUNCTION(BlueprintCallable, Category="Session")
@@ -61,7 +62,7 @@ public:
 	bool StartNewGame(int32 Seed);
 	UFUNCTION(BlueprintCallable, Category="Session")
 	bool TogglePauseMenu();
-	/** An active session cannot be saved yet. Pass true only after explicit discard confirmation. */
+	/** Save active gameplay before quitting unless the caller explicitly requests discard. */
 	UFUNCTION(BlueprintCallable, Category="Session")
 	bool ExitGame(bool bDiscardUnsavedSession = false);
 	UFUNCTION(BlueprintPure, Category="Session")
@@ -114,6 +115,9 @@ private:
 	void ReleasePawnControls();
 	void HandleEscape();
 	void PollLoading();
+	void BeginLoading(bool bRestore);
+	bool SaveCheckpoint();
+	bool bRestoringCheckpoint = false;
 	void SetLoadingStatus(const FText& Status);
 	bool Fail(const FText& Reason);
 	void ReturnToMenu(const FText& Reason);

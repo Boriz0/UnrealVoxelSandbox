@@ -18,7 +18,9 @@ public:
 	AVoxelWorldManager();
 
 	void SetMenuPreview(AActor* Camera);
-	void StartFreshWorld(int32 Seed);
+	void StartWorld(int32 Seed, const TMap<FIntVector, uint8>& WorldEdits);
+	void ExportEdits(TMap<FIntVector, uint8>& OutEdits) const { EditStore.Export(OutEdits); }
+	bool IsRestoreAreaReady(FVector Location, double CapsuleRadius) const;
 	bool IsInitialGridReady() const;
 	bool HasSurfaceCollision(const FVector& Surface) const;
 

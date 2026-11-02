@@ -9,6 +9,7 @@ enum class EVoxelType : uint8;
 class UNREALMINECRAFT_API FVoxelWorldGenerator
 {
 public:
+	static constexpr int32 Version = 1;
 	explicit FVoxelWorldGenerator(int32 WorldSeed);
 	int32 GetSurfaceHeight(int64 WorldX, int64 WorldY) const;
 	static EVoxelType GetSolidTypeAtHeight(int64 WorldZ);

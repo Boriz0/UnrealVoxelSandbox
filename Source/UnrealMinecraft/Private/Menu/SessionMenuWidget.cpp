@@ -70,7 +70,7 @@ void USessionMenuWidget::ExitClicked() { Controller()->ExitGame(false); }
 void USessionMenuWidget::NewClicked()
 {
 	ShowError(FText::GetEmpty());
-	const bool Saved = Controller()->HasCompatibleSave();
+	const bool Saved = Controller()->HasExistingSave();
 	if (Saved || Controller()->SessionState == EVoxelSessionState::Paused)
 	{
 		Warning->SetText(Saved ? LOCTEXT("Overwrite","Starting a new world will replace your current save. Continue?")
