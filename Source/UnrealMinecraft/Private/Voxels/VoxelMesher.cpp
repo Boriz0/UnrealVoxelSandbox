@@ -13,7 +13,7 @@ namespace
 	};
 
 	// U cross V points outward. Triangle winding is reversed for Unreal's front faces.
-	const FFaceDefinition Faces[] =
+	const FFaceDefinition VoxelFaceDefinitions[] =
 	{
 		{ FIntVector(1, 0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1) },
 		{ FIntVector(-1, 0, 0), FVector(-1, 0, 0), FVector(0, -1, 0), FVector(0, 0, 1) },
@@ -94,7 +94,7 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const F
 
 				const FLinearColor Color = GetVoxelColor(VoxelType);
 				const FVector Center = (FVector(X, Y, Z) + FVector(0.5)) * VoxelSize;
-				for (const FFaceDefinition& Face : Faces)
+				for (const FFaceDefinition& Face : VoxelFaceDefinitions)
 				{
 					const FIntVector Adjacent = Coordinates + Face.NeighborOffset;
 					bool bSolid;
