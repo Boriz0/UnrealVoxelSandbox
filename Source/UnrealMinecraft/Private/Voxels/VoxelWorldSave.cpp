@@ -11,7 +11,7 @@ namespace
 {
 	const TCHAR* Slots[] = {TEXT("VoxelWorld_A"), TEXT("VoxelWorld_B")};
 	constexpr int32 User = 0;
-	constexpr int32 CurrentFormat = 1;
+	constexpr int32 CurrentFormat = 2;
 
 	FString SlotPath(const TCHAR* Slot)
 	{
@@ -26,7 +26,7 @@ bool UVoxelWorldSave::Exists()
 
 bool UVoxelWorldSave::IsCompatible() const
 {
-	if (FormatVersion != CurrentFormat || GeneratorVersion != FVoxelWorldGenerator::Version || Generation <= 0
+	if (FormatVersion < 1 || FormatVersion > CurrentFormat || GeneratorVersion != FVoxelWorldGenerator::Version || Generation <= 0
 		|| !PlayerTransform.IsValid() || ViewRotation.ContainsNaN())
 	{
 		return false;

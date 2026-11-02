@@ -118,6 +118,7 @@ private:
 	void BeginLoading(bool bRestore);
 	bool SaveCheckpoint();
 	bool bRestoringCheckpoint = false;
+	bool bLegacyCheckpoint = false;
 	void SetLoadingStatus(const FText& Status);
 	bool Fail(const FText& Reason);
 	void ReturnToMenu(const FText& Reason);

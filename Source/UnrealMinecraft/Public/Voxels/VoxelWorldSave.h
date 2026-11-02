@@ -15,6 +15,7 @@ public:
 	UPROPERTY() int32 GeneratorVersion = 0;
 	UPROPERTY() int64 Generation = 0;
 	UPROPERTY() int32 Seed = 0;
+	UPROPERTY() bool bNoclip = false;
 	UPROPERTY() FTransform PlayerTransform;
 	UPROPERTY() FRotator ViewRotation = FRotator::ZeroRotator;
 	UPROPERTY() TMap<FIntVector, uint8> Edits;

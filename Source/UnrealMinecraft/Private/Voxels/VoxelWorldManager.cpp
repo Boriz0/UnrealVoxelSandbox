@@ -9,9 +9,16 @@
 #include "Voxels/VoxelChunkActor.h"
 #include "Voxels/VoxelChunkData.h"
 #include "Voxels/VoxelMesher.h"
+#include "Voxels/VoxelWorldGenerator.h"
 
 namespace
 {
+	EVoxelType GeneratedVoxel(const FVoxelWorldGenerator& Terrain, FIntVector World)
+	{
+		return World.Z > Terrain.GetSurfaceHeight(World.X, World.Y)
+			? EVoxelType::Air : Terrain.GetSolidTypeAtHeight(World.Z);
+	}
+
 	void SplitWorldVoxel(FIntVector World, FIntVector& Chunk, FIntVector& Local)
 	{
 		constexpr int32 Size = FVoxelChunkData::ChunkSize;
@@ -279,7 +286,7 @@ bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
 	if (Previous != Type)
 	{
 		Actor->ChunkData->SetVoxel(Local, Type);
-		EditStore.Record(Chunk, Local, Type);
+		EditStore.Record(Chunk, Local, Type, GeneratedVoxel(FVoxelWorldGenerator(WorldSeed), WorldVoxel));
 		MarkChunkDirty(Chunk);
 		if (Previous == EVoxelType::Air || Type == EVoxelType::Air)
 		{
@@ -452,11 +459,12 @@ void AVoxelWorldManager::StartWorld(int32 Seed, const TMap<FIntVector, uint8>& W
 {
 	ClearStreamedWorld();
 	EditStore = FVoxelEditStore{};
+	const FVoxelWorldGenerator Terrain(Seed);
 	for (const auto& Edit : WorldEdits)
 	{
 		FIntVector Chunk, Local;
 		SplitWorldVoxel(Edit.Key, Chunk, Local);
-		EditStore.Record(Chunk, Local, static_cast<EVoxelType>(Edit.Value));
+		EditStore.Record(Chunk, Local, static_cast<EVoxelType>(Edit.Value), GeneratedVoxel(Terrain, Edit.Key));
 	}
 	WorldSeed = Seed;
 	bPreview = false;

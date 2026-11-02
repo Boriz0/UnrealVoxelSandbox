@@ -11,6 +11,7 @@
 #include "Menu/SessionMenuWidget.h"
 #include "PlatformFeatures.h"
 #include "UnrealMinecraft.h"
+#include "UnrealMinecraftCharacter.h"
 #include "TimerManager.h"
 #include "Voxels/VoxelChunkActor.h"
 #include "Voxels/VoxelWorldGenerator.h"
@@ -171,6 +172,10 @@ bool AUnrealMinecraftPlayerController::SaveCheckpoint()
 	auto* Save = NewObject<UVoxelWorldSave>();
 	Save->Seed = WorldManager->WorldSeed;
 	Save->PlayerTransform = GetPawn()->GetActorTransform();
+	if (const auto* PlayerCharacter = Cast<AUnrealMinecraftCharacter>(GetPawn()))
+	{
+		Save->bNoclip = PlayerCharacter->GetCharacterMovement()->IsFlying();
+	}
 	Save->ViewRotation = GetControlRotation();
 	WorldManager->ExportEdits(Save->Edits);
 	return Save->Commit();
@@ -238,6 +243,10 @@ bool AUnrealMinecraftPlayerController::StartNewGame(int32 Seed)
 	Location.Z = FMath::Max(Location.Z, GroundZ + HalfHeight + 5.);
 	GetPawn()->SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
 	BeginLoading(false);
+	if (PreviousMovementMode == MOVE_Flying)
+	{
+		PreviousMovementMode = MOVE_Falling;
+	}
 	return true;
 }
 
@@ -268,10 +277,31 @@ void AUnrealMinecraftPlayerController::PollLoading()
 	{
 		return;
 	}
-	if (!GetPawn()->TeleportTo(GetPawn()->GetActorLocation(), GetPawn()->GetActorRotation()))
+	const bool bCanRecoverLegacyFlight = bRestoringCheckpoint && bLegacyCheckpoint && Cast<AUnrealMinecraftCharacter>(FrozenCharacter.Get());
+	if (bCanRecoverLegacyFlight)
 	{
-		ReturnToMenu(LOCTEXT("SpawnBlocked", "Player Start is obstructed. Choose a clear spawn point above the terrain."));
-		return;
+		// A pawn deep inside solid terrain may not overlap any collision triangles.
+		const FVector Cell = GetPawn()->GetActorLocation() / FVoxelMesher::VoxelSize;
+		EVoxelType Type;
+		if (WorldManager->GetWorldVoxel(FIntVector(FMath::FloorToInt(Cell.X), FMath::FloorToInt(Cell.Y), FMath::FloorToInt(Cell.Z)), Type)
+			&& Type != EVoxelType::Air)
+		{
+			PreviousMovementMode = MOVE_Flying;
+		}
+	}
+	const bool bNoclipRestore = bRestoringCheckpoint && PreviousMovementMode == MOVE_Flying && FrozenCharacter.IsValid();
+	if (!bNoclipRestore && !GetPawn()->TeleportTo(GetPawn()->GetActorLocation(), GetPawn()->GetActorRotation()))
+	{
+		// Older checkpoints did not record flight. Let a buried player fly out.
+		if (bCanRecoverLegacyFlight)
+		{
+			PreviousMovementMode = MOVE_Flying;
+		}
+		else
+		{
+			ReturnToMenu(LOCTEXT("SpawnBlocked", "Player Start is obstructed. Choose a clear spawn point above the terrain."));
+			return;
+		}
 	}
 	GetWorldTimerManager().ClearTimer(LoadingTimer);
 	if (!bRestoringCheckpoint && !SaveCheckpoint())
@@ -308,6 +338,11 @@ bool AUnrealMinecraftPlayerController::ContinueSession()
 		GetPawn()->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
 		SetControlRotation(Save->ViewRotation);
 		BeginLoading(true);
+		bLegacyCheckpoint = Save->FormatVersion == 1;
+		if (Cast<AUnrealMinecraftCharacter>(FrozenCharacter.Get()))
+		{
+			PreviousMovementMode = Save->bNoclip ? MOVE_Flying : MOVE_Falling;
+		}
 		return true;
 	}
 	if (SessionState != EVoxelSessionState::Paused || !SetPause(false))

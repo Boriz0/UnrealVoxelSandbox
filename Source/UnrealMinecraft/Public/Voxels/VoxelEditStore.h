@@ -7,9 +7,20 @@ using FVoxelOverrides = TMap<FIntVector, EVoxelType>;
 /** Game-thread session overrides, indexed first by chunk, then by local voxel. */
 struct FVoxelEditStore
 {
-	void Record(FIntVector Chunk, FIntVector Local, EVoxelType Type)
+	void Record(FIntVector Chunk, FIntVector Local, EVoxelType Type, EVoxelType Generated)
 	{
-		Chunks.FindOrAdd(Chunk).Add(Local, Type);
+		if (Type != Generated)
+		{
+			Chunks.FindOrAdd(Chunk).Add(Local, Type);
+		}
+		else if (FVoxelOverrides* Overrides = Chunks.Find(Chunk))
+		{
+			Overrides->Remove(Local);
+			if (Overrides->IsEmpty())
+			{
+				Chunks.Remove(Chunk);
+			}
+		}
 	}
 
 	FVoxelOverrides Snapshot(FIntVector Chunk) const { return Chunks.FindRef(Chunk); }
