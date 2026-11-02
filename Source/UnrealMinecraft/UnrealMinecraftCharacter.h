@@ -97,10 +97,15 @@ protected:
 
 	/** Set up input action bindings */
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
+	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 	virtual void UnPossessed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	bool bCollisionBeforeFlight = true;
+	void ToggleFlight();
+	void FlyUp();
+	void FlyDown();
 	void IncreaseRunningSpeed();
 	void DecreaseRunningSpeed();
 	void ScaleRunningSpeed(float Multiplier);

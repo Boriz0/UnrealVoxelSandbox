@@ -54,6 +54,7 @@ void AUnrealMinecraftCharacter::SetupPlayerInputComponent(UInputComponent* Playe
 		BindVoxelInput(EnhancedInputComponent);
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AUnrealMinecraftCharacter::DoJumpStart);
+		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::FlyUp);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AUnrealMinecraftCharacter::DoJumpEnd);
 
 		// Moving
@@ -95,6 +96,7 @@ void AUnrealMinecraftCharacter::ScaleRunningSpeed(float Multiplier)
 		&& FMath::IsFinite(NewAcceleration) && NewAcceleration >= 0.f)
 	{
 		Movement->MaxWalkSpeed = NewSpeed;
+		Movement->MaxFlySpeed = NewSpeed;
 		Movement->MaxAcceleration = NewAcceleration;
 		if (GEngine)
 		{
@@ -141,14 +143,72 @@ void AUnrealMinecraftCharacter::DoMove(float Right, float Forward)
 	{
 		// pass the move inputs
 		AddMovementInput(GetActorRightVector(), Right);
-		AddMovementInput(GetActorForwardVector(), Forward);
+		const FVector ForwardDirection = GetCharacterMovement()->IsFlying()
+			? GetControlRotation().Vector() : GetActorForwardVector();
+		AddMovementInput(ForwardDirection, Forward);
 	}
 }
 
 void AUnrealMinecraftCharacter::DoJumpStart()
 {
 	// pass Jump to the character
-	Jump();
+	if (!GetCharacterMovement()->IsFlying())
+	{
+		Jump();
+	}
+}
+
+void AUnrealMinecraftCharacter::ToggleFlight()
+{
+	const auto* PC = Cast<AUnrealMinecraftPlayerController>(GetController());
+	if (PC && PC->SessionState == EVoxelSessionState::Playing)
+	{
+		auto* Movement = GetCharacterMovement();
+		StopJumping();
+		Movement->StopMovementImmediately();
+		Movement->SetMovementMode(Movement->IsFlying() ? MOVE_Falling : MOVE_Flying);
+		if (GEngine)
+		{
+			static const uint64 MessageKey = GetTypeHash(FName(TEXT("VoxelFlightStatus")));
+			GEngine->AddOnScreenDebugMessage(MessageKey, 3.f, FColor::Yellow,
+				Movement->IsFlying() ? TEXT("Flight ON (noclip)") : TEXT("Flight OFF"));
+		}
+	}
+}
+
+void AUnrealMinecraftCharacter::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
+{
+	auto* Movement = GetCharacterMovement();
+	if (Movement->IsFlying() && PreviousMovementMode != MOVE_Flying)
+	{
+		Movement->MaxFlySpeed = Movement->MaxWalkSpeed;
+		// PhysFlying clears velocity on release when this flag is set.
+		Movement->bCheatFlying = true;
+		bCollisionBeforeFlight = GetActorEnableCollision();
+		SetActorEnableCollision(false);
+	}
+	else if (PreviousMovementMode == MOVE_Flying && !Movement->IsFlying())
+	{
+		Movement->bCheatFlying = false;
+		SetActorEnableCollision(bCollisionBeforeFlight);
+	}
+	Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+}
+
+void AUnrealMinecraftCharacter::FlyUp()
+{
+	if (GetCharacterMovement()->IsFlying())
+	{
+		AddMovementInput(FVector::UpVector);
+	}
+}
+
+void AUnrealMinecraftCharacter::FlyDown()
+{
+	if (GetCharacterMovement()->IsFlying())
+	{
+		AddMovementInput(-FVector::UpVector);
+	}
 }
 
 void AUnrealMinecraftCharacter::DoJumpEnd()

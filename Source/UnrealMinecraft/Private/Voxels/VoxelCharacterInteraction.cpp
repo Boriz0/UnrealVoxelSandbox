@@ -35,6 +35,13 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	VoxelContext->MapKey(SpeedUp, EKeys::MouseScrollUp);
 	VoxelContext->MapKey(SpeedDown, EKeys::MouseScrollDown);
 	BoundVoxelInput = Input;
+	UInputAction* FlightToggle = NewObject<UInputAction>(VoxelContext);
+	UInputAction* Descend = NewObject<UInputAction>(VoxelContext);
+	VoxelContext->MapKey(FlightToggle, EKeys::LeftShift);
+	VoxelContext->MapKey(Descend, EKeys::LeftControl);
+	VoxelContext->MapKey(Descend, EKeys::RightControl);
+	VoxelBindingHandles.Add(Input->BindAction(FlightToggle, ETriggerEvent::Started, this, &ThisClass::ToggleFlight).GetHandle());
+	VoxelBindingHandles.Add(Input->BindAction(Descend, ETriggerEvent::Triggered, this, &ThisClass::FlyDown).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(SpeedUp, ETriggerEvent::Triggered, this, &ThisClass::IncreaseRunningSpeed).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(SpeedDown, ETriggerEvent::Triggered, this, &ThisClass::DecreaseRunningSpeed).GetHandle());
 	VoxelBindingHandles.Add(Input->BindAction(Mine, ETriggerEvent::Triggered, this, &ThisClass::UpdateMining).GetHandle());
