@@ -69,6 +69,10 @@ protected:
 public:
 	AUnrealMinecraftCharacter();
 
+	/** Progress is negative when the aimed block is not being mined. */
+	bool GetVoxelAimFeedback(FIntVector& Voxel, FIntVector& Face, float& Progress, bool& bCanPlace) const;
+	void ResetMining();
+
 protected:
 
 	/** Called from Input Actions for movement input */
@@ -113,7 +117,8 @@ private:
 	void BindVoxelInput(UEnhancedInputComponent* Input);
 	void RemoveVoxelInput();
 	void UpdateMining();
-	void ResetMining();
+	float GetMiningDuration(EVoxelType Type) const;
+	bool CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const;
 	void PlaceVoxel();
 	AVoxelWorldManager* TraceVoxel(FIntVector& Voxel, FIntVector& Face, EVoxelType& Type) const;
 

@@ -96,6 +96,10 @@ void AUnrealMinecraftPlayerController::ApplyPawnControls()
 		return;
 	}
 	ControlledPawn->DisableInput(this);
+	if (AUnrealMinecraftCharacter* VoxelCharacter = Cast<AUnrealMinecraftCharacter>(ControlledPawn))
+	{
+		VoxelCharacter->ResetMining();
+	}
 	// Paused already freezes the world. Preserve the player's exact movement on resume.
 	if (SessionState != EVoxelSessionState::Paused && !FrozenCharacter.IsValid())
 	{

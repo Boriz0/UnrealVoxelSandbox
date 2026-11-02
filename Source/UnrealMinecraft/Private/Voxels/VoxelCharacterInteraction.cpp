@@ -148,13 +148,47 @@ void AUnrealMinecraftCharacter::UpdateMining()
 		MiningType = Type;
 		MiningStartTime = Now;
 	}
-	const float Duration = Type == EVoxelType::Stone ? StoneMiningSeconds
-		: (Type == EVoxelType::Snow ? SnowMiningSeconds : GrassMiningSeconds);
-	if (Now - MiningStartTime >= Duration)
+	if (Now - MiningStartTime >= GetMiningDuration(Type))
 	{
 		Manager->SetWorldVoxel(Voxel, EVoxelType::Air);
 		ResetMining();
 	}
+}
+
+float AUnrealMinecraftCharacter::GetMiningDuration(EVoxelType Type) const
+{
+	return Type == EVoxelType::Stone ? StoneMiningSeconds
+		: (Type == EVoxelType::Snow ? SnowMiningSeconds : GrassMiningSeconds);
+}
+
+bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVector& Face, float& Progress, bool& bCanPlace) const
+{
+	EVoxelType Type;
+	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
+	if (!Manager)
+	{
+		return false;
+	}
+	bCanPlace = CanPlaceVoxel(*Manager, Voxel + Face);
+	Progress = -1.f;
+	if (MiningManager.Get() == Manager && MiningVoxel == Voxel && MiningType == Type)
+	{
+		const float Duration = GetMiningDuration(Type);
+		Progress = Duration > 0 ? FMath::Clamp((GetWorld()->GetTimeSeconds() - MiningStartTime) / Duration, 0., 1.) : 1.f;
+	}
+	return true;
+}
+
+bool AUnrealMinecraftCharacter::CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const
+{
+	EVoxelType Type;
+	if (!Manager.GetWorldVoxel(Target, Type) || Type != EVoxelType::Air)
+	{
+		return false;
+	}
+	const FVector Center = (FVector(Target) + FVector(0.5)) * FVoxelMesher::VoxelSize;
+	const FCollisionShape Box = FCollisionShape::MakeBox(FVector(FVoxelMesher::VoxelSize * 0.5));
+	return !GetCapsuleComponent()->OverlapComponent(Center, FQuat::Identity, Box);
 }
 
 void AUnrealMinecraftCharacter::PlaceVoxel()
@@ -162,19 +196,9 @@ void AUnrealMinecraftCharacter::PlaceVoxel()
 	FIntVector Voxel, Face;
 	EVoxelType Type;
 	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
-	if (!Manager)
+	if (Manager && CanPlaceVoxel(*Manager, Voxel + Face))
 	{
-		return;
-	}
-	const FIntVector Target = Voxel + Face;
-	if (!Manager->GetWorldVoxel(Target, Type) || Type != EVoxelType::Air)
-	{
-		return;
-	}
-	const FVector Center = (FVector(Target) + FVector(0.5)) * FVoxelMesher::VoxelSize;
-	const FCollisionShape Box = FCollisionShape::MakeBox(FVector(FVoxelMesher::VoxelSize * 0.5));
-	if (!GetCapsuleComponent()->OverlapComponent(Center, FQuat::Identity, Box))
-	{
+		const FIntVector Target = Voxel + Face;
 		Manager->SetWorldVoxel(Target, FVoxelWorldGenerator::GetSolidTypeAtHeight(Target.Z));
 	}
 }
