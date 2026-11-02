@@ -2,12 +2,15 @@
 
 #include "CoreMinimal.h"
 
+#include "VoxelChunkData.generated.h"
+
+UENUM(BlueprintType)
 enum class EVoxelType : uint8
 {
 	Air = 0,
-	Stone,
-	Grass,
-	Snow
+	Stone = 1,
+	Grass = 2,
+	Snow = 3
 };
 
 /** Owns a fixed-size chunk of voxel types in X-major order. */

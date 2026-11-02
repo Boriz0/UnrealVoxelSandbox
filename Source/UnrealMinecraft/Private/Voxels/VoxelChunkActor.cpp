@@ -3,6 +3,7 @@
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Voxels/VoxelMesher.h"
+#include "Voxels/VoxelMaterialPalette.h"
 #include "Voxels/VoxelChunkBuild.h"
 #include "Voxels/VoxelWorldManager.h"
 
@@ -67,17 +68,32 @@ void AVoxelChunkActor::ApplyBuild(FVoxelChunkBuild& Build)
 	{
 		ChunkData = MoveTemp(Build.GeneratedData);
 	}
-	const FVoxelMeshData& Mesh = Build.Mesh;
-	if (Mesh.Vertices.IsEmpty())
+	const int32 NumSlots = FMath::Max(ProceduralMesh->GetNumSections(), Build.Mesh.Sections.Num());
+	AppliedFaces.SetNum(NumSlots);
+	for (int32 Slot = 0; Slot < NumSlots; ++Slot)
 	{
-		ProceduralMesh->ClearMeshSection(0);
+		FVoxelMeshSection* Section = Build.Mesh.Sections.IsValidIndex(Slot) ? &Build.Mesh.Sections[Slot] : nullptr;
+		if (!Section || Section->Vertices.IsEmpty())
+		{
+			const FProcMeshSection* Previous = ProceduralMesh->GetProcMeshSection(Slot);
+			if (Previous && !Previous->ProcIndexBuffer.IsEmpty())
+			{
+				ProceduralMesh->ClearMeshSection(Slot);
+			}
+			AppliedFaces[Slot].Reset();
+			continue;
+		}
+
+		const EVoxelType Type = static_cast<EVoxelType>(Slot + 1);
+		UMaterialInterface* Material = MaterialPalette ? MaterialPalette->Materials.FindRef(Type).Get() : nullptr;
+		ProceduralMesh->SetMaterial(Slot, Material ? Material : VoxelMaterial.Get());
+		// Face IDs determine every vertex attribute within a type. Skip redundant uploads and cooks.
+		if (AppliedFaces[Slot] != Section->FaceIds)
+		{
+			const TArray<FProcMeshTangent> Tangents;
+			ProceduralMesh->CreateMeshSection_LinearColor(Slot, Section->Vertices, Section->Triangles,
+				Section->Normals, Section->UVs, Section->VertexColors, Tangents, true, false);
+			AppliedFaces[Slot] = MoveTemp(Section->FaceIds);
+		}
 	}
-	else
-	{
-		// Replace in one submission so the previous collision body survives until the new cook completes.
-		const TArray<FProcMeshTangent> Tangents;
-		ProceduralMesh->CreateMeshSection_LinearColor(0, Mesh.Vertices, Mesh.Triangles,
-			Mesh.Normals, Mesh.UVs, Mesh.VertexColors, Tangents, true, false);
-	}
-	ProceduralMesh->SetMaterial(0, VoxelMaterial);
 }

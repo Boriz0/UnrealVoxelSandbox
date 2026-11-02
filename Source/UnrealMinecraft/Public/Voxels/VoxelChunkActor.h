@@ -6,6 +6,7 @@
 #include "VoxelChunkActor.generated.h"
 
 class UMaterialInterface;
+class UVoxelMaterialPalette;
 class UProceduralMeshComponent;
 
 /** A single world-aligned chunk. ChunkCoordinate determines its world transform. */
@@ -27,6 +28,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Voxel")
 	TObjectPtr<UMaterialInterface> VoxelMaterial;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
+	TObjectPtr<UVoxelMaterialPalette> MaterialPalette;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Voxel")
 	TObjectPtr<UProceduralMeshComponent> ProceduralMesh;
 
@@ -44,7 +48,9 @@ protected:
 
 private:
 	friend class AVoxelWorldManager;
+	friend class FVoxelMaterialSectionsTest;
 	void ApplyBuild(struct FVoxelChunkBuild& Build);
+	TArray<TArray<uint32>> AppliedFaces;
 	uint64 Revision = 0;
 	TOptional<FVoxelChunkData> ChunkData;
 };

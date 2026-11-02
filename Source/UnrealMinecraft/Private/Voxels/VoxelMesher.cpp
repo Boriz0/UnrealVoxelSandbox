@@ -94,8 +94,9 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const F
 
 				const FLinearColor Color = GetVoxelColor(VoxelType);
 				const FVector Center = (FVector(X, Y, Z) + FVector(0.5)) * VoxelSize;
-				for (const FFaceDefinition& Face : VoxelFaceDefinitions)
+				for (int32 FaceIndex = 0; FaceIndex < UE_ARRAY_COUNT(VoxelFaceDefinitions); ++FaceIndex)
 				{
+					const FFaceDefinition& Face = VoxelFaceDefinitions[FaceIndex];
 					const FIntVector Adjacent = Coordinates + Face.NeighborOffset;
 					bool bSolid;
 					if (FVoxelChunkData::IsValidCoordinate(Adjacent))
@@ -112,19 +113,27 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const F
 						continue;
 					}
 
-					const int32 FirstVertex = Mesh.Vertices.Num();
+					const int32 Slot = static_cast<int32>(VoxelType) - 1;
+					if (Slot >= Mesh.Sections.Num())
+					{
+						Mesh.Sections.SetNum(Slot + 1);
+					}
+					FVoxelMeshSection& Section = Mesh.Sections[Slot];
+					const int32 Cell = X + FVoxelChunkData::ChunkSize * (Y + FVoxelChunkData::ChunkSize * Z);
+					Section.FaceIds.Add(Cell * UE_ARRAY_COUNT(VoxelFaceDefinitions) + FaceIndex);
+					const int32 FirstVertex = Section.Vertices.Num();
 					const FVector FaceCenter = Center + Face.Normal * (VoxelSize * 0.5);
 					const FVector HalfU = Face.U * (VoxelSize * 0.5);
 					const FVector HalfV = Face.V * (VoxelSize * 0.5);
-					Mesh.Vertices.Append({ FaceCenter - HalfU - HalfV, FaceCenter + HalfU - HalfV,
+					Section.Vertices.Append({ FaceCenter - HalfU - HalfV, FaceCenter + HalfU - HalfV,
 						FaceCenter + HalfU + HalfV, FaceCenter - HalfU + HalfV });
-					Mesh.Triangles.Append({ FirstVertex, FirstVertex + 2, FirstVertex + 1,
+					Section.Triangles.Append({ FirstVertex, FirstVertex + 2, FirstVertex + 1,
 						FirstVertex, FirstVertex + 3, FirstVertex + 2 });
-					Mesh.UVs.Append({ FVector2D(0, 0), FVector2D(1, 0), FVector2D(1, 1), FVector2D(0, 1) });
+					Section.UVs.Append({ FVector2D(0, 0), FVector2D(1, 0), FVector2D(1, 1), FVector2D(0, 1) });
 					for (int32 Corner = 0; Corner < 4; ++Corner)
 					{
-						Mesh.Normals.Add(Face.Normal);
-						Mesh.VertexColors.Add(Color);
+						Section.Normals.Add(Face.Normal);
+						Section.VertexColors.Add(Color);
 					}
 				}
 			}

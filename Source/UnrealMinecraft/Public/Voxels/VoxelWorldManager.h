@@ -7,6 +7,7 @@
 
 class AVoxelChunkActor;
 class UMaterialInterface;
+class UVoxelMaterialPalette;
 
 /** Streams a bounded grid around player zero, independent of this Actor's transform. */
 UCLASS()
@@ -63,6 +64,9 @@ public:
 	/** Shared vertex-color material assigned before each chunk generates its mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
 	TObjectPtr<UMaterialInterface> VoxelMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
+	TObjectPtr<UVoxelMaterialPalette> MaterialPalette;
 
 protected:
 	virtual void BeginPlay() override;

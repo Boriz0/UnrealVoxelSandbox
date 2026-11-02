@@ -417,6 +417,7 @@ AVoxelChunkActor* AVoxelWorldManager::SpawnChunk(const FIntVector& Coordinate)
 	Chunk->WorldSeed = WorldSeed;
 	Chunk->ChunkCoordinate = Coordinate;
 	Chunk->VoxelMaterial = VoxelMaterial;
+	Chunk->MaterialPalette = MaterialPalette;
 	SpawnedChunks.Add(Coordinate, Chunk);
 	Chunk->OnDestroyed.AddDynamic(this, &AVoxelWorldManager::HandleChunkDestroyed);
 	// Managed chunks receive their completed build after BeginPlay.

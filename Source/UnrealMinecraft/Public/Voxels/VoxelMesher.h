@@ -18,13 +18,20 @@ private:
 };
 
 /** Chunk-local geometry with no dependency on Actors or mesh components. */
-struct UNREALMINECRAFT_API FVoxelMeshData
+struct UNREALMINECRAFT_API FVoxelMeshSection
 {
+	TArray<uint32> FaceIds;
 	TArray<FVector> Vertices;
 	TArray<int32> Triangles;
 	TArray<FVector> Normals;
 	TArray<FVector2D> UVs;
 	TArray<FLinearColor> VertexColors;
+};
+
+struct UNREALMINECRAFT_API FVoxelMeshData
+{
+	// Solid types use their persistent voxel ID minus one as their material slot.
+	TArray<FVoxelMeshSection> Sections;
 };
 
 class UNREALMINECRAFT_API FVoxelMesher
