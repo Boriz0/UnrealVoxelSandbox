@@ -29,6 +29,13 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	Mine->bConsumeInput = Place->bConsumeInput = false;
 	VoxelContext->MapKey(Mine, EKeys::LeftMouseButton);
 	VoxelContext->MapKey(Place, EKeys::RightMouseButton);
+	const FKey SlotKeys[] = {EKeys::One, EKeys::Two, EKeys::Three};
+	for (int32 Slot = 0; Slot < FVoxelInventory::SlotCount; ++Slot)
+	{
+		UInputAction* Select = NewObject<UInputAction>(VoxelContext);
+		VoxelContext->MapKey(Select, SlotKeys[Slot]);
+		VoxelBindingHandles.Add(Input->BindAction(Select, ETriggerEvent::Started, this, &ThisClass::SelectVoxelSlot, Slot).GetHandle());
+	}
 	UInputAction* SpeedUp = NewObject<UInputAction>(VoxelContext);
 	UInputAction* SpeedDown = NewObject<UInputAction>(VoxelContext);
 	SpeedUp->ValueType = SpeedDown->ValueType = EInputActionValueType::Boolean;
@@ -153,7 +160,11 @@ void AUnrealMinecraftCharacter::UpdateMining()
 	}
 	if (Now - MiningStartTime >= Manager->Catalog->Find(Type)->MiningSeconds)
 	{
-		Manager->SetWorldVoxel(Voxel, VoxelAir);
+		const int32 Slot = Inventory.SlotForType(Type);
+		if (Slot != INDEX_NONE && Inventory.Counts[Slot] < MAX_int32 && Manager->SetWorldVoxel(Voxel, VoxelAir))
+		{
+			++Inventory.Counts[Slot];
+		}
 		ResetMining();
 	}
 }
@@ -179,7 +190,7 @@ bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVecto
 bool AUnrealMinecraftCharacter::CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const
 {
 	uint8 Type;
-	if (!Manager.GetWorldVoxel(Target, Type) || Type != VoxelAir)
+	if (Inventory.Counts[Inventory.SelectedSlot] == 0 || !Manager.GetWorldVoxel(Target, Type) || Type != VoxelAir)
 	{
 		return false;
 	}
@@ -196,6 +207,14 @@ void AUnrealMinecraftCharacter::PlaceVoxel()
 	if (Manager && CanPlaceVoxel(*Manager, Voxel + Face))
 	{
 		const FIntVector Target = Voxel + Face;
-		Manager->SetWorldVoxel(Target, Manager->SolidAtHeight(Target.Z));
+		if (Manager->SetWorldVoxel(Target, FVoxelInventory::Types[Inventory.SelectedSlot]))
+		{
+			--Inventory.Counts[Inventory.SelectedSlot];
+		}
 	}
+}
+
+void AUnrealMinecraftCharacter::SelectVoxelSlot(int32 Slot)
+{
+	Inventory.SelectedSlot = Slot;
 }

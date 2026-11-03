@@ -179,6 +179,7 @@ bool AUnrealMinecraftPlayerController::SaveCheckpoint()
 	if (const auto* PlayerCharacter = Cast<AUnrealMinecraftCharacter>(GetPawn()))
 	{
 		Save->bNoclip = PlayerCharacter->GetCharacterMovement()->IsFlying();
+		Save->Inventory = PlayerCharacter->Inventory;
 	}
 	Save->ViewRotation = GetControlRotation();
 	WorldManager->ExportEdits(Save->Edits);
@@ -241,6 +242,10 @@ bool AUnrealMinecraftPlayerController::StartNewGame(int32 Seed)
 	}
 	GroundZ = (Surface + 1) * VoxelSize;
 	Manager->StartWorld(Seed, {});
+	if (auto* PlayerCharacter = Cast<AUnrealMinecraftCharacter>(GetPawn()))
+	{
+		PlayerCharacter->Inventory = FVoxelInventory{};
+	}
 	// Loading streams from the pawn at the spawn column, while the view remains on the camera.
 	const float HalfHeight = GetPawn()->GetSimpleCollisionHalfHeight();
 	FVector Location = SpawnAnchor;
@@ -346,6 +351,10 @@ bool AUnrealMinecraftPlayerController::ContinueSession()
 			}
 		}
 		WorldManager->StartWorld(Save->Seed, Save->Edits);
+		if (auto* PlayerCharacter = Cast<AUnrealMinecraftCharacter>(GetPawn()))
+		{
+			PlayerCharacter->Inventory = Save->Inventory;
+		}
 		GetPawn()->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);
 		SetControlRotation(Save->ViewRotation);
 		BeginLoading(true);

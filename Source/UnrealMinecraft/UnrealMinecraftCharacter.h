@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Voxels/VoxelInventory.h"
 #include "UnrealMinecraftCharacter.generated.h"
 
 class UInputComponent;
@@ -63,6 +64,7 @@ public:
 	/** Progress is negative when the aimed block is not being mined. */
 	bool GetVoxelAimFeedback(FIntVector& Voxel, FIntVector& Face, float& Progress, bool& bCanPlace) const;
 	void ResetMining();
+	FVoxelInventory Inventory;
 
 protected:
 
@@ -111,6 +113,7 @@ private:
 	void UpdateMining();
 	bool CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const;
 	void PlaceVoxel();
+	void SelectVoxelSlot(int32 Slot);
 	AVoxelWorldManager* TraceVoxel(FIntVector& Voxel, FIntVector& Face, uint8& Type) const;
 
 	UPROPERTY(Transient)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GameFramework/SaveGame.h"
+#include "Voxels/VoxelInventory.h"
 #include "VoxelWorldSave.generated.h"
 
 /** A checkpoint of the procedural world. Positions in Edits are absolute voxel coordinates. */
@@ -19,6 +20,7 @@ public:
 	UPROPERTY() FTransform PlayerTransform;
 	UPROPERTY() FRotator ViewRotation = FRotator::ZeroRotator;
 	UPROPERTY() TMap<FIntVector, uint8> Edits;
+	UPROPERTY() FVoxelInventory Inventory;
 
 	static bool Exists();
 	static UVoxelWorldSave* LoadLatest(int32* OutSlot = nullptr);

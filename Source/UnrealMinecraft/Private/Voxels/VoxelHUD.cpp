@@ -2,6 +2,7 @@
 
 #include "Components/WidgetComponent.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "Rendering/DrawElements.h"
 #include "UnrealMinecraftCharacter.h"
 #include "UnrealMinecraftPlayerController.h"
@@ -151,5 +152,32 @@ void AVoxelHUD::DrawHUD()
 		DrawRect(FLinearColor(0.f, 0.f, 0.f, .7f), X - 2.5f, Y - 2.5f, 5.f, 5.f);
 		DrawRect(bPlacementBlocked ? FLinearColor(1.f, .55f, .1f) : FLinearColor(.93f, .93f, .93f),
 			X - 1.5f, Y - 1.5f, 3.f, 3.f);
+
+		const auto* Character = Cast<AUnrealMinecraftCharacter>(GetOwningPawn());
+		if (!Character)
+		{
+			return;
+		}
+		const FVoxelInventory& Inventory = Character->Inventory;
+		static const TCHAR* Names[] = {TEXT("Grass"), TEXT("Stone"), TEXT("Snow")};
+		const float Scale = FMath::Min3(Canvas->ClipX / 370.f, Canvas->ClipY / 160.f, 1.5f);
+		const float Width = 108.f * Scale;
+		const float Stride = Width + 4.f * Scale;
+		const float Left = X - (Stride * (Inventory.SlotCount - 1) + Width) * .5f;
+		const float Top = Canvas->ClipY - 58.f * Scale;
+		for (int32 Slot = 0; Slot < Inventory.SlotCount; ++Slot)
+		{
+			const float SlotX = Left + Slot * Stride;
+			const bool bSelected = Slot == Inventory.SelectedSlot;
+			DrawRect(bSelected ? FLinearColor(1.f, .72f, .2f) : FLinearColor(.25f, .25f, .25f),
+				SlotX, Top, Width, 44.f * Scale);
+			DrawRect(FLinearColor(.035f, .035f, .035f), SlotX + 2.f * Scale, Top + 2.f * Scale,
+				Width - 4.f * Scale, 40.f * Scale);
+			DrawText(FString::Printf(TEXT("%d  %s"), Slot + 1, Names[Slot]), FLinearColor::White,
+				SlotX + 7.f * Scale, Top + 4.f * Scale, GEngine->GetSmallFont(), Scale);
+			DrawText(FString::Printf(TEXT("x%d"), Inventory.Counts[Slot]),
+				Inventory.Counts[Slot] ? FLinearColor::White : FLinearColor::Gray,
+				SlotX + 7.f * Scale, Top + 23.f * Scale, GEngine->GetSmallFont(), Scale);
+		}
 	}
 }
