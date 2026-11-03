@@ -25,21 +25,21 @@ static void GenerateBorder(const FVoxelWorldGenerator& Terrain, const FVoxelProc
 	}
 	for (const auto& Edit : Input.Edits)
 	{
-		Face[FVoxelBorders::PlaneIndex(Input.Axis, Edit.Key)] = Edit.Value != EVoxelType::Air;
+		Face[FVoxelBorders::PlaneIndex(Input.Axis, Edit.Key)] = Edit.Value != VoxelAir;
 	}
 }
 
-FVoxelChunkBuild::FTask FVoxelChunkBuild::Launch(int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot,
+FVoxelChunkBuild::FTask FVoxelChunkBuild::Launch(TSharedRef<const FVoxelCatalogSnapshot> Catalog, int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot,
 	FVoxelOverrides Edits, FVoxelBorders Borders, TArray<FVoxelProceduralBorder> MissingBorders)
 {
-	return UE::Tasks::Launch(UE_SOURCE_LOCATION, [Seed, Coordinate, Snapshot = MoveTemp(Snapshot),
+	return UE::Tasks::Launch(UE_SOURCE_LOCATION, [Catalog, Seed, Coordinate, Snapshot = MoveTemp(Snapshot),
 		Edits = MoveTemp(Edits), Borders = MoveTemp(Borders), MissingBorders = MoveTemp(MissingBorders)]() mutable
 	{
 		FVoxelChunkBuild Result;
 		if (!Snapshot.IsSet())
 		{
 			Result.GeneratedData.Emplace();
-			FVoxelWorldGenerator::GenerateChunk(Result.GeneratedData.GetValue(), Seed, Coordinate);
+			FVoxelWorldGenerator::GenerateChunk(Result.GeneratedData.GetValue(), Seed, Coordinate, *Catalog);
 			for (const auto& Edit : Edits)
 			{
 				Result.GeneratedData->SetVoxel(Edit.Key, Edit.Value);
@@ -51,7 +51,7 @@ FVoxelChunkBuild::FTask FVoxelChunkBuild::Launch(int32 Seed, FIntVector Coordina
 		{
 			GenerateBorder(Terrain, Input, Borders);
 		}
-		Result.Mesh = FVoxelMesher::BuildMesh(Data, Borders);
+		Result.Mesh = FVoxelMesher::BuildMesh(Data, Borders, Catalog->Tints);
 		return Result;
 	});
 }

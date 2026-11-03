@@ -286,9 +286,9 @@ void AUnrealMinecraftPlayerController::PollLoading()
 	{
 		// A pawn deep inside solid terrain may not overlap any collision triangles.
 		const FVector Cell = GetPawn()->GetActorLocation() / FVoxelMesher::VoxelSize;
-		EVoxelType Type;
+		uint8 Type;
 		if (WorldManager->GetWorldVoxel(FIntVector(FMath::FloorToInt(Cell.X), FMath::FloorToInt(Cell.Y), FMath::FloorToInt(Cell.Z)), Type)
-			&& Type != EVoxelType::Air)
+			&& Type != VoxelAir)
 		{
 			PreviousMovementMode = MOVE_Flying;
 		}
@@ -337,6 +337,13 @@ bool AUnrealMinecraftPlayerController::ContinueSession()
 		if (!Save || !WorldManager.IsValid() || !WorldManager->IsActorTickEnabled() || !GetPawn())
 		{
 			return Fail(LOCTEXT("NoSave", "Cannot load the world. Check the save, player, and world manager in the Output Log."));
+		}
+		for (const auto& Edit : Save->Edits)
+		{
+			if (Edit.Value != VoxelAir && !WorldManager->Catalog->Find(Edit.Value))
+			{
+				return Fail(FText::Format(LOCTEXT("UnknownVoxel", "Voxel ID {0} is missing from the catalog. Restore its entry to load this checkpoint."), FText::AsNumber(Edit.Value)));
+			}
 		}
 		WorldManager->StartWorld(Save->Seed, Save->Edits);
 		GetPawn()->SetActorTransform(Save->PlayerTransform, false, nullptr, ETeleportType::TeleportPhysics);

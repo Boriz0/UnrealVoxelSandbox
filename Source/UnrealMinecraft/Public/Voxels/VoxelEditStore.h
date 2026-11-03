@@ -2,12 +2,12 @@
 
 #include "Voxels/VoxelChunkData.h"
 
-using FVoxelOverrides = TMap<FIntVector, EVoxelType>;
+using FVoxelOverrides = TMap<FIntVector, uint8>;
 
 /** Game-thread session overrides, indexed first by chunk, then by local voxel. */
 struct FVoxelEditStore
 {
-	void Record(FIntVector Chunk, FIntVector Local, EVoxelType Type, EVoxelType Generated)
+	void Record(FIntVector Chunk, FIntVector Local, uint8 Type, uint8 Generated)
 	{
 		if (Type != Generated)
 		{
@@ -32,7 +32,7 @@ struct FVoxelEditStore
 		{
 			for (const auto& Edit : Chunk.Value)
 			{
-				WorldEdits.Add(Chunk.Key * FVoxelChunkData::ChunkSize + Edit.Key, static_cast<uint8>(Edit.Value));
+				WorldEdits.Add(Chunk.Key * FVoxelChunkData::ChunkSize + Edit.Key, Edit.Value);
 			}
 		}
 	}

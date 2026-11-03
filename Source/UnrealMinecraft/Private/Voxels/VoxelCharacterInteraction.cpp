@@ -9,7 +9,7 @@
 #include "InputAction.h"
 #include "InputMappingContext.h"
 #include "Voxels/VoxelChunkActor.h"
-#include "Voxels/VoxelWorldGenerator.h"
+#include "Voxels/VoxelCatalog.h"
 #include "Voxels/VoxelWorldManager.h"
 
 void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
@@ -87,7 +87,7 @@ void AUnrealMinecraftCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason
 	Super::EndPlay(EndPlayReason);
 }
 
-AVoxelWorldManager* AUnrealMinecraftCharacter::TraceVoxel(FIntVector& Voxel, FIntVector& Face, EVoxelType& Type) const
+AVoxelWorldManager* AUnrealMinecraftCharacter::TraceVoxel(FIntVector& Voxel, FIntVector& Face, uint8& Type) const
 {
 	const APlayerController* PC = Cast<APlayerController>(GetController());
 	if (!PC || InteractionRange <= 0)
@@ -125,7 +125,7 @@ AVoxelWorldManager* AUnrealMinecraftCharacter::TraceVoxel(FIntVector& Voxel, FIn
 		}
 		Voxel[I] = static_cast<int32>(Cell);
 	}
-	return Manager->GetWorldVoxel(Voxel, Type) && Type != EVoxelType::Air ? Manager : nullptr;
+	return Manager->GetWorldVoxel(Voxel, Type) && Type != VoxelAir ? Manager : nullptr;
 }
 
 void AUnrealMinecraftCharacter::ResetMining()
@@ -136,7 +136,7 @@ void AUnrealMinecraftCharacter::ResetMining()
 void AUnrealMinecraftCharacter::UpdateMining()
 {
 	FIntVector Voxel, Face;
-	EVoxelType Type;
+	uint8 Type;
 	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
 	if (!Manager)
 	{
@@ -151,22 +151,16 @@ void AUnrealMinecraftCharacter::UpdateMining()
 		MiningType = Type;
 		MiningStartTime = Now;
 	}
-	if (Now - MiningStartTime >= GetMiningDuration(Type))
+	if (Now - MiningStartTime >= Manager->Catalog->Find(Type)->MiningSeconds)
 	{
-		Manager->SetWorldVoxel(Voxel, EVoxelType::Air);
+		Manager->SetWorldVoxel(Voxel, VoxelAir);
 		ResetMining();
 	}
 }
 
-float AUnrealMinecraftCharacter::GetMiningDuration(EVoxelType Type) const
-{
-	return Type == EVoxelType::Stone ? StoneMiningSeconds
-		: (Type == EVoxelType::Snow ? SnowMiningSeconds : GrassMiningSeconds);
-}
-
 bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVector& Face, float& Progress, bool& bCanPlace) const
 {
-	EVoxelType Type;
+	uint8 Type;
 	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
 	if (!Manager)
 	{
@@ -176,7 +170,7 @@ bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVecto
 	Progress = -1.f;
 	if (MiningManager.Get() == Manager && MiningVoxel == Voxel && MiningType == Type)
 	{
-		const float Duration = GetMiningDuration(Type);
+		const float Duration = Manager->Catalog->Find(Type)->MiningSeconds;
 		Progress = Duration > 0 ? FMath::Clamp((GetWorld()->GetTimeSeconds() - MiningStartTime) / Duration, 0., 1.) : 1.f;
 	}
 	return true;
@@ -184,8 +178,8 @@ bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVecto
 
 bool AUnrealMinecraftCharacter::CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const
 {
-	EVoxelType Type;
-	if (!Manager.GetWorldVoxel(Target, Type) || Type != EVoxelType::Air)
+	uint8 Type;
+	if (!Manager.GetWorldVoxel(Target, Type) || Type != VoxelAir)
 	{
 		return false;
 	}
@@ -197,11 +191,11 @@ bool AUnrealMinecraftCharacter::CanPlaceVoxel(AVoxelWorldManager& Manager, const
 void AUnrealMinecraftCharacter::PlaceVoxel()
 {
 	FIntVector Voxel, Face;
-	EVoxelType Type;
+	uint8 Type;
 	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
 	if (Manager && CanPlaceVoxel(*Manager, Voxel + Face))
 	{
 		const FIntVector Target = Voxel + Face;
-		Manager->SetWorldVoxel(Target, FVoxelWorldGenerator::GetSolidTypeAtHeight(Target.Z));
+		Manager->SetWorldVoxel(Target, Manager->SolidAtHeight(Target.Z));
 	}
 }

@@ -3,12 +3,13 @@
 #include "ProceduralMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Voxels/VoxelMesher.h"
-#include "Voxels/VoxelMaterialPalette.h"
+#include "Voxels/VoxelCatalog.h"
 #include "Voxels/VoxelChunkBuild.h"
 #include "Voxels/VoxelWorldManager.h"
 
 AVoxelChunkActor::AVoxelChunkActor()
 {
+	Catalog = UVoxelCatalog::ConstructorDefault();
 	PrimaryActorTick.bCanEverTick = false;
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralMesh"));
 	SetRootComponent(ProceduralMesh);
@@ -44,7 +45,16 @@ void AVoxelChunkActor::GenerateChunk()
 		false, nullptr, ETeleportType::TeleportPhysics);
 
 	const uint64 RequestedRevision = ++Revision;
-	auto Task = FVoxelChunkBuild::Launch(WorldSeed, ChunkCoordinate);
+	FString Error;
+	auto Data = Catalog ? Catalog->BuildSnapshot(Error) : nullptr;
+	if (!Data)
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s requires a valid voxel catalog: %s"), *GetName(), *Error);
+		return;
+	}
+	// Standalone editor regeneration can change the definition tint without changing any faces.
+	AppliedFaces.Reset();
+	auto Task = FVoxelChunkBuild::Launch(Data.ToSharedRef(), WorldSeed, ChunkCoordinate);
 	UE::Tasks::Launch(UE_SOURCE_LOCATION, [WeakThis = TWeakObjectPtr<AVoxelChunkActor>(this), RequestedRevision, Task]() mutable
 	{
 		AVoxelChunkActor* Actor = WeakThis.Get();
@@ -84,8 +94,9 @@ void AVoxelChunkActor::ApplyBuild(FVoxelChunkBuild& Build)
 			continue;
 		}
 
-		const EVoxelType Type = static_cast<EVoxelType>(Slot + 1);
-		UMaterialInterface* Material = MaterialPalette ? MaterialPalette->Materials.FindRef(Type).Get() : nullptr;
+		const uint8 Type = static_cast<uint8>(Slot + 1);
+		const UVoxelDefinition* Definition = Catalog ? Catalog->Find(Type) : nullptr;
+		UMaterialInterface* Material = Definition ? Definition->Material.Get() : nullptr;
 		ProceduralMesh->SetMaterial(Slot, Material ? Material : VoxelMaterial.Get());
 		// Face IDs determine every vertex attribute within a type. Skip redundant uploads and cooks.
 		if (AppliedFaces[Slot] != Section->FaceIds)

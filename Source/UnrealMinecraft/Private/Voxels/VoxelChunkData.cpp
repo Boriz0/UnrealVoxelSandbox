@@ -2,27 +2,27 @@
 
 FVoxelChunkData::FVoxelChunkData()
 {
-	Voxels.Init(static_cast<uint8>(EVoxelType::Air), VoxelCount);
+	Voxels.Init(VoxelAir, VoxelCount);
 }
 
-EVoxelType FVoxelChunkData::GetVoxel(const FIntVector& Coordinates) const
+uint8 FVoxelChunkData::GetVoxel(const FIntVector& Coordinates) const
 {
 	if (!IsValidCoordinate(Coordinates))
 	{
-		return EVoxelType::Air;
+		return VoxelAir;
 	}
 
-	return static_cast<EVoxelType>(Voxels[GetIndex(Coordinates)]);
+	return Voxels[GetIndex(Coordinates)];
 }
 
-bool FVoxelChunkData::SetVoxel(const FIntVector& Coordinates, EVoxelType VoxelType)
+bool FVoxelChunkData::SetVoxel(const FIntVector& Coordinates, uint8 VoxelType)
 {
 	if (!IsValidCoordinate(Coordinates))
 	{
 		return false;
 	}
 
-	Voxels[GetIndex(Coordinates)] = static_cast<uint8>(VoxelType);
+	Voxels[GetIndex(Coordinates)] = VoxelType;
 	return true;
 }
 

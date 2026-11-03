@@ -8,25 +8,31 @@
 #include "ProceduralMeshComponent.h"
 #include "Voxels/VoxelChunkActor.h"
 #include "Voxels/VoxelChunkBuild.h"
-#include "Voxels/VoxelMaterialPalette.h"
+#include "Voxels/VoxelCatalog.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVoxelMaterialSectionsTest, "UnrealMinecraft.Voxels.MaterialSections",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FVoxelMaterialSectionsTest::RunTest(const FString& Parameters)
 {
-	UVoxelMaterialPalette* Palette = LoadObject<UVoxelMaterialPalette>(nullptr,
-		TEXT("/Game/Voxels/Materials/DA_VoxelMaterialPalette.DA_VoxelMaterialPalette"));
-	if (!TestNotNull(TEXT("Terrain palette"), Palette))
+	UVoxelCatalog* Catalog = LoadObject<UVoxelCatalog>(nullptr,
+		TEXT("/Game/Voxels/DA_VoxelCatalog.DA_VoxelCatalog"));
+	if (!TestNotNull(TEXT("Terrain catalog"), Catalog))
+	{
+		return false;
+	}
+	FString Error;
+	auto Snapshot = Catalog->BuildSnapshot(Error);
+	if (!TestTrue(FString::Printf(TEXT("Valid catalog: %s"), *Error), Snapshot.IsValid()))
 	{
 		return false;
 	}
 	// A fresh physics scene snapshots the registered query materials on creation.
-	for (const auto& Entry : Palette->Materials)
+	for (const auto& Entry : Catalog->Blocks)
 	{
-		if (Entry.Value && Entry.Value->GetPhysicalMaterial())
+		if (Entry.Value && Entry.Value.GetDefaultObject()->Material && Entry.Value.GetDefaultObject()->Material->GetPhysicalMaterial())
 		{
-			Entry.Value->GetPhysicalMaterial()->GetPhysicsMaterial();
+			Entry.Value.GetDefaultObject()->Material->GetPhysicalMaterial()->GetPhysicsMaterial();
 		}
 	}
 	UWorld* World = UWorld::CreateWorld(EWorldType::EditorPreview, false);
@@ -45,12 +51,12 @@ bool FVoxelMaterialSectionsTest::RunTest(const FString& Parameters)
 	}
 
 	FVoxelChunkData Data;
-	Data.SetVoxel({0, 0, 0}, EVoxelType::Stone);
-	auto Rebuild = [&](EVoxelType Neighbor)
+	Data.SetVoxel({0, 0, 0}, 1);
+	auto Rebuild = [&](uint8 Neighbor)
 	{
 		Data.SetVoxel({1, 0, 0}, Neighbor);
 		FVoxelChunkBuild Build;
-		Build.Mesh = FVoxelMesher::BuildMesh(Data);
+		Build.Mesh = FVoxelMesher::BuildMesh(Data, {}, Snapshot->Tints);
 		Chunk->ApplyBuild(Build);
 	};
 	auto Trace = [&](int32 X, FHitResult& Hit)
@@ -61,22 +67,23 @@ bool FVoxelMaterialSectionsTest::RunTest(const FString& Parameters)
 		return World->LineTraceSingleByChannel(Hit, Start, Start - FVector(0, 0, 145), ECC_Visibility, Query);
 	};
 
+	Chunk->Catalog = nullptr;
 	Chunk->VoxelMaterial = LoadObject<UMaterialInterface>(nullptr,
 		TEXT("/Game/Voxels/Materials/M_VoxelVertexColor.M_VoxelVertexColor"));
-	Rebuild(EVoxelType::Snow);
+	Rebuild(3);
 	TestNotNull(TEXT("Existing fallback"), Chunk->VoxelMaterial.Get());
-	TestTrue(TEXT("Unassigned palette uses fallback"), Chunk->ProceduralMesh->GetMaterial(2) == Chunk->VoxelMaterial);
-	Chunk->MaterialPalette = Palette;
+	TestTrue(TEXT("Unassigned catalog uses fallback"), Chunk->ProceduralMesh->GetMaterial(2) == Chunk->VoxelMaterial);
+	Chunk->Catalog = Catalog;
 	for (int32 Pass = 0; Pass < 2; ++Pass)
 	{
-		Rebuild(EVoxelType::Snow);
+		Rebuild(3);
 		FHitResult Hit;
 		TestTrue(TEXT("Stone hit"), Trace(50, Hit));
 		TestEqual(TEXT("Stone physical material"), GetNameSafe(Hit.PhysMaterial.Get()), FString(TEXT("PM_VoxelStone")));
 		TestTrue(TEXT("Snow hit"), Trace(150, Hit));
 		TestEqual(TEXT("Snow physical material"), GetNameSafe(Hit.PhysMaterial.Get()), FString(TEXT("PM_VoxelSnow")));
-		TestTrue(TEXT("Snow render material"), Chunk->ProceduralMesh->GetMaterial(2) == Palette->Materials.FindRef(EVoxelType::Snow));
-		Rebuild(EVoxelType::Air);
+		TestTrue(TEXT("Snow render material"), Chunk->ProceduralMesh->GetMaterial(2) == Catalog->Find(3)->Material);
+		Rebuild(VoxelAir);
 		TestFalse(TEXT("Removed snow has no collision"), Trace(150, Hit));
 		const FProcMeshSection* Snow = Chunk->ProceduralMesh->GetProcMeshSection(2);
 		TestTrue(TEXT("Removed snow has no triangles"), !Snow || Snow->ProcIndexBuffer.IsEmpty());

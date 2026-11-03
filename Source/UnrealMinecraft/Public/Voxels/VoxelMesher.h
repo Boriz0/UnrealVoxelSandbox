@@ -40,5 +40,5 @@ public:
 	static constexpr double VoxelSize = 100.0;
 
 	/** Read-only input; the caller must not modify ChunkData during meshing. */
-	static FVoxelMeshData BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders = {});
+	static FVoxelMeshData BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders, const TArray<FLinearColor>& Tints);
 };

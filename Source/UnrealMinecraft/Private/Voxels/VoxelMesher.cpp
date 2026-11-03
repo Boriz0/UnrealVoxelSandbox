@@ -22,17 +22,6 @@ namespace
 		{ FIntVector(0, 0, 1), FVector(0, 0, 1), FVector(1, 0, 0), FVector(0, 1, 0) },
 		{ FIntVector(0, 0, -1), FVector(0, 0, -1), FVector(-1, 0, 0), FVector(0, 1, 0) }
 	};
-
-	FLinearColor GetVoxelColor(EVoxelType VoxelType)
-	{
-		switch (VoxelType)
-		{
-		case EVoxelType::Stone: return FLinearColor(0.4f, 0.4f, 0.4f);
-		case EVoxelType::Grass: return FLinearColor(0.1f, 0.6f, 0.1f);
-		case EVoxelType::Snow: return FLinearColor::White;
-		default: return FLinearColor::White;
-		}
-	}
 }
 
 int32 FVoxelBorders::TouchingLayer(int32 Sign)
@@ -65,7 +54,7 @@ void FVoxelBorders::Capture(int32 Axis, int32 Sign, const FVoxelChunkData& Neigh
 		{
 			Local[(Axis + 1) % 3] = U;
 			Local[(Axis + 2) % 3] = V;
-			Face[U + Size * V] = Neighbor.GetVoxel(Local) != EVoxelType::Air;
+			Face[U + Size * V] = Neighbor.GetVoxel(Local) != VoxelAir;
 		}
 	}
 }
@@ -76,7 +65,7 @@ bool FVoxelBorders::IsSolid(FIntVector Outside, int32 Axis, int32 Sign) const
 	return Face.Num() && Face[PlaneIndex(Axis, Outside)];
 }
 
-FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders)
+FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders, const TArray<FLinearColor>& Tints)
 {
 	FVoxelMeshData Mesh;
 	for (int32 Z = 0; Z < FVoxelChunkData::ChunkSize; ++Z)
@@ -86,13 +75,13 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const F
 			for (int32 X = 0; X < FVoxelChunkData::ChunkSize; ++X)
 			{
 				const FIntVector Coordinates(X, Y, Z);
-				const EVoxelType VoxelType = ChunkData.GetVoxel(Coordinates);
-				if (VoxelType == EVoxelType::Air)
+				const uint8 VoxelType = ChunkData.GetVoxel(Coordinates);
+				if (VoxelType == VoxelAir)
 				{
 					continue;
 				}
 
-				const FLinearColor Color = GetVoxelColor(VoxelType);
+				const FLinearColor Color = Tints[VoxelType];
 				const FVector Center = (FVector(X, Y, Z) + FVector(0.5)) * VoxelSize;
 				for (int32 FaceIndex = 0; FaceIndex < UE_ARRAY_COUNT(VoxelFaceDefinitions); ++FaceIndex)
 				{
@@ -101,7 +90,7 @@ FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const F
 					bool bSolid;
 					if (FVoxelChunkData::IsValidCoordinate(Adjacent))
 					{
-						bSolid = ChunkData.GetVoxel(Adjacent) != EVoxelType::Air;
+						bSolid = ChunkData.GetVoxel(Adjacent) != VoxelAir;
 					}
 					else
 					{

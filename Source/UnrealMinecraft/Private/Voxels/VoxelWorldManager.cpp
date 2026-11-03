@@ -13,10 +13,10 @@
 
 namespace
 {
-	EVoxelType GeneratedVoxel(const FVoxelWorldGenerator& Terrain, FIntVector World)
+	uint8 GeneratedVoxel(const FVoxelWorldGenerator& Terrain, const FVoxelCatalogSnapshot& Catalog, FIntVector World)
 	{
 		return World.Z > Terrain.GetSurfaceHeight(World.X, World.Y)
-			? EVoxelType::Air : Terrain.GetSolidTypeAtHeight(World.Z);
+			? VoxelAir : Catalog.SolidAtHeight(World.Z);
 	}
 
 	void SplitWorldVoxel(FIntVector World, FIntVector& Chunk, FIntVector& Local)
@@ -86,6 +86,7 @@ static void SortByDistance(TArray<FIntVector>& Coordinates, FIntVector PlayerChu
 
 AVoxelWorldManager::AVoxelWorldManager()
 {
+	Catalog = UVoxelCatalog::ConstructorDefault();
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = TG_PrePhysics;
 }
@@ -93,6 +94,14 @@ AVoxelWorldManager::AVoxelWorldManager()
 void AVoxelWorldManager::BeginPlay()
 {
 	Super::BeginPlay();
+	FString Error;
+	CatalogData = Catalog ? Catalog->BuildSnapshot(Error) : nullptr;
+	if (!CatalogData)
+	{
+		UE_LOG(LogUnrealMinecraft, Error, TEXT("Cannot stream voxels without a valid catalog: %s"), *Error);
+		SetActorTickEnabled(false);
+		return;
+	}
 
 	if (HorizontalRadius < 0 || UnloadRadius <= HorizontalRadius
 		|| MaxChunksPerFrame < 1 || MaxConcurrentTasks < 1 || MaxMeshUploadsPerFrame < 1 || MinVerticalLayer > MaxVerticalLayer)
@@ -172,7 +181,7 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 					EditStore.SnapshotFace(Neighbor, Axis, FVoxelBorders::TouchingLayer(Sign))});
 			}
 		});
-		Request.Task = FVoxelChunkBuild::Launch(WorldSeed, Coordinate, MoveTemp(Snapshot),
+		Request.Task = FVoxelChunkBuild::Launch(CatalogData.ToSharedRef(), WorldSeed, Coordinate, MoveTemp(Snapshot),
 			Request.bRemesh ? FVoxelOverrides{} : EditStore.Snapshot(Coordinate), MoveTemp(Borders), MoveTemp(MissingBorders));
 		Builds.Add(Coordinate, MoveTemp(Request));
 		++GeneratedThisFrame;
@@ -257,18 +266,18 @@ void AVoxelWorldManager::UpdateStreaming(const FIntVector& PlayerChunk)
 	SortByDistance(PendingLoads, PlayerChunk);
 }
 
-bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutType) const
+bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const
 {
 	check(IsInGameThread());
 	FIntVector Chunk, Local;
 	SplitWorldVoxel(WorldVoxel, Chunk, Local);
 	const AVoxelChunkActor* Actor = SpawnedChunks.FindRef(Chunk);
 	const FVoxelChunkData* Data = IsValid(Actor) ? Actor->GetChunkData() : nullptr;
-	OutType = Data ? Data->GetVoxel(Local) : EVoxelType::Air;
+	OutType = Data ? Data->GetVoxel(Local) : VoxelAir;
 	return Data != nullptr;
 }
 
-bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
+bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, uint8 Type)
 {
 	check(IsInGameThread());
 	if (bPreview)
@@ -278,17 +287,17 @@ bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type)
 	FIntVector Chunk, Local;
 	SplitWorldVoxel(WorldVoxel, Chunk, Local);
 	AVoxelChunkActor* Actor = SpawnedChunks.FindRef(Chunk);
-	if (!IsValid(Actor) || !Actor->GetChunkData() || Type > EVoxelType::Snow)
+	if (!IsValid(Actor) || !Actor->GetChunkData() || (Type != VoxelAir && !Catalog->Find(Type)))
 	{
 		return false;
 	}
-	const EVoxelType Previous = Actor->ChunkData->GetVoxel(Local);
+	const uint8 Previous = Actor->ChunkData->GetVoxel(Local);
 	if (Previous != Type)
 	{
 		Actor->ChunkData->SetVoxel(Local, Type);
-		EditStore.Record(Chunk, Local, Type, GeneratedVoxel(FVoxelWorldGenerator(WorldSeed), WorldVoxel));
+		EditStore.Record(Chunk, Local, Type, GeneratedVoxel(FVoxelWorldGenerator(WorldSeed), *CatalogData, WorldVoxel));
 		MarkChunkDirty(Chunk);
-		if (Previous == EVoxelType::Air || Type == EVoxelType::Air)
+		if (Previous == VoxelAir || Type == VoxelAir)
 		{
 			InvalidateNeighbors(Chunk, Local);
 		}
@@ -310,7 +319,7 @@ void AVoxelWorldManager::InvalidateNeighbors(FIntVector Chunk, FIntVector Edited
 		{
 			FIntVector Across = EditedLocal;
 			Across[Axis] = FVoxelBorders::TouchingLayer(Sign);
-			if (Adjacent->GetChunkData()->GetVoxel(Across) != EVoxelType::Air)
+			if (Adjacent->GetChunkData()->GetVoxel(Across) != VoxelAir)
 			{
 				MarkChunkDirty(Neighbor);
 			}
@@ -417,7 +426,7 @@ AVoxelChunkActor* AVoxelWorldManager::SpawnChunk(const FIntVector& Coordinate)
 	Chunk->WorldSeed = WorldSeed;
 	Chunk->ChunkCoordinate = Coordinate;
 	Chunk->VoxelMaterial = VoxelMaterial;
-	Chunk->MaterialPalette = MaterialPalette;
+	Chunk->Catalog = Catalog;
 	SpawnedChunks.Add(Coordinate, Chunk);
 	Chunk->OnDestroyed.AddDynamic(this, &AVoxelWorldManager::HandleChunkDestroyed);
 	// Managed chunks receive their completed build after BeginPlay.
@@ -465,7 +474,7 @@ void AVoxelWorldManager::StartWorld(int32 Seed, const TMap<FIntVector, uint8>& W
 	{
 		FIntVector Chunk, Local;
 		SplitWorldVoxel(Edit.Key, Chunk, Local);
-		EditStore.Record(Chunk, Local, static_cast<EVoxelType>(Edit.Value), GeneratedVoxel(Terrain, Edit.Key));
+		EditStore.Record(Chunk, Local, Edit.Value, GeneratedVoxel(Terrain, *CatalogData, Edit.Key));
 	}
 	WorldSeed = Seed;
 	bPreview = false;
@@ -498,8 +507,7 @@ bool AVoxelWorldManager::IsRestoreAreaReady(FVector Location, double CapsuleRadi
 				{
 					return false;
 				}
-				const auto* Section = Chunk->ProceduralMesh->GetProcMeshSection(0);
-				if (Section && !Section->ProcIndexBuffer.IsEmpty() && Chunk->ProceduralMesh->GetBodySetup()->TriMeshGeometries.IsEmpty())
+				if (Chunk->ProceduralMesh->ContainsPhysicsTriMeshData(true) && Chunk->ProceduralMesh->GetBodySetup()->TriMeshGeometries.IsEmpty())
 				{
 					return false;
 				}

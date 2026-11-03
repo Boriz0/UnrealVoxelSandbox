@@ -6,7 +6,7 @@
 #include "VoxelChunkActor.generated.h"
 
 class UMaterialInterface;
-class UVoxelMaterialPalette;
+class UVoxelCatalog;
 class UProceduralMeshComponent;
 
 /** A single world-aligned chunk. ChunkCoordinate determines its world transform. */
@@ -29,7 +29,7 @@ public:
 	TObjectPtr<UMaterialInterface> VoxelMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
-	TObjectPtr<UVoxelMaterialPalette> MaterialPalette;
+	TObjectPtr<UVoxelCatalog> Catalog;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Voxel")
 	TObjectPtr<UProceduralMeshComponent> ProceduralMesh;

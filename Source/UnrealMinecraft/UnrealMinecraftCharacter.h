@@ -15,7 +15,7 @@ class UEnhancedInputComponent;
 class UEnhancedInputLocalPlayerSubsystem;
 class UInputMappingContext;
 class AVoxelWorldManager;
-enum class EVoxelType : uint8;
+
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -40,15 +40,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Voxel Interaction", meta=(ClampMin="0", Units="cm"))
 	float InteractionRange = 500.f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Voxel Interaction", meta=(ClampMin="0", Units="s"))
-	float StoneMiningSeconds = 1.5f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Voxel Interaction", meta=(ClampMin="0", Units="s"))
-	float GrassMiningSeconds = 0.8f;
-
-	UPROPERTY(EditDefaultsOnly, Category="Voxel Interaction", meta=(ClampMin="0", Units="s"))
-	float SnowMiningSeconds = 0.3f;
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
@@ -118,10 +109,9 @@ private:
 	void BindVoxelInput(UEnhancedInputComponent* Input);
 	void RemoveVoxelInput();
 	void UpdateMining();
-	float GetMiningDuration(EVoxelType Type) const;
 	bool CanPlaceVoxel(AVoxelWorldManager& Manager, const FIntVector& Target) const;
 	void PlaceVoxel();
-	AVoxelWorldManager* TraceVoxel(FIntVector& Voxel, FIntVector& Face, EVoxelType& Type) const;
+	AVoxelWorldManager* TraceVoxel(FIntVector& Voxel, FIntVector& Face, uint8& Type) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputMappingContext> VoxelContext;
@@ -130,7 +120,7 @@ private:
 	TArray<uint32> VoxelBindingHandles;
 	TWeakObjectPtr<AVoxelWorldManager> MiningManager;
 	FIntVector MiningVoxel = FIntVector::ZeroValue;
-	EVoxelType MiningType{};
+	uint8 MiningType{};
 	double MiningStartTime = 0;
 	
 

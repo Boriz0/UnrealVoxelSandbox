@@ -1,13 +1,8 @@
 #include "Voxels/VoxelWorldGenerator.h"
 
 #include "Math/RandomStream.h"
+#include "Voxels/VoxelCatalog.h"
 #include "Voxels/VoxelChunkData.h"
-
-EVoxelType FVoxelWorldGenerator::GetSolidTypeAtHeight(int64 WorldZ)
-{
-	return WorldZ < GrassMinHeight ? EVoxelType::Stone
-		: (WorldZ < SnowMinHeight ? EVoxelType::Grass : EVoxelType::Snow);
-}
 
 FVoxelWorldGenerator::FVoxelWorldGenerator(int32 WorldSeed)
 {
@@ -26,7 +21,7 @@ int32 FVoxelWorldGenerator::GetSurfaceHeight(int64 WorldX, int64 WorldY) const
 	return FMath::FloorToInt(BaseTerrainHeight + Noise * HeightAmplitude);
 }
 
-void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates)
+void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 WorldSeed, const FIntVector& ChunkCoordinates, const FVoxelCatalogSnapshot& Catalog)
 {
 	const FVoxelWorldGenerator Terrain(WorldSeed);
 	constexpr int32 ChunkSize = FVoxelChunkData::ChunkSize;
@@ -49,14 +44,14 @@ void FVoxelWorldGenerator::GenerateChunk(FVoxelChunkData& ChunkData, int32 World
 	for (int32 Z = 0; Z < ChunkSize; ++Z)
 	{
 		const int64 WorldZ = OriginZ + Z;
-		const EVoxelType SolidType = GetSolidTypeAtHeight(WorldZ);
+		const uint8 SolidType = Catalog.SolidAtHeight(WorldZ);
 
 		for (int32 Y = 0; Y < ChunkSize; ++Y)
 		{
 			for (int32 X = 0; X < ChunkSize; ++X)
 			{
-				const EVoxelType VoxelType = WorldZ > SurfaceHeights[X + ChunkSize * Y]
-					? EVoxelType::Air : SolidType;
+				const uint8 VoxelType = WorldZ > SurfaceHeights[X + ChunkSize * Y]
+					? VoxelAir : SolidType;
 				ChunkData.SetVoxel(FIntVector(X, Y, Z), VoxelType);
 			}
 		}

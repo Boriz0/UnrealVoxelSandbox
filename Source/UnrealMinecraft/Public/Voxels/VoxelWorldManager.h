@@ -7,7 +7,7 @@
 
 class AVoxelChunkActor;
 class UMaterialInterface;
-class UVoxelMaterialPalette;
+class UVoxelCatalog;
 
 /** Streams a bounded grid around player zero, independent of this Actor's transform. */
 UCLASS()
@@ -23,11 +23,12 @@ public:
 	void ExportEdits(TMap<FIntVector, uint8>& OutEdits) const { EditStore.Export(OutEdits); }
 	bool IsRestoreAreaReady(FVector Location, double CapsuleRadius) const;
 	bool IsInitialGridReady() const;
+	uint8 SolidAtHeight(int64 Z) const { return CatalogData->SolidAtHeight(Z); }
 	bool HasSurfaceCollision(const FVector& Surface) const;
 
 	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
-	bool GetWorldVoxel(FIntVector WorldVoxel, EVoxelType& OutType) const;
-	bool SetWorldVoxel(FIntVector WorldVoxel, EVoxelType Type);
+	bool GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const;
+	bool SetWorldVoxel(FIntVector WorldVoxel, uint8 Type);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
 	int32 WorldSeed = 12345;
@@ -66,7 +67,7 @@ public:
 	TObjectPtr<UMaterialInterface> VoxelMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
-	TObjectPtr<UVoxelMaterialPalette> MaterialPalette;
+	TObjectPtr<UVoxelCatalog> Catalog;
 
 protected:
 	virtual void BeginPlay() override;
@@ -74,6 +75,7 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	TSharedPtr<const FVoxelCatalogSnapshot> CatalogData;
 	void ClearStreamedWorld();
 	TWeakObjectPtr<AActor> PreviewCamera;
 	bool bPreview = false;

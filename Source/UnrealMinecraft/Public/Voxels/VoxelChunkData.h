@@ -2,16 +2,7 @@
 
 #include "CoreMinimal.h"
 
-#include "VoxelChunkData.generated.h"
-
-UENUM(BlueprintType)
-enum class EVoxelType : uint8
-{
-	Air = 0,
-	Stone = 1,
-	Grass = 2,
-	Snow = 3
-};
+inline constexpr uint8 VoxelAir = 0;
 
 /** Owns a fixed-size chunk of voxel types in X-major order. */
 class UNREALMINECRAFT_API FVoxelChunkData
@@ -24,10 +15,10 @@ public:
 	FVoxelChunkData();
 
 	/** Returns Air when Coordinates are outside the chunk. */
-	EVoxelType GetVoxel(const FIntVector& Coordinates) const;
+	uint8 GetVoxel(const FIntVector& Coordinates) const;
 
 	/** Returns false without modifying data when Coordinates are outside the chunk. */
-	bool SetVoxel(const FIntVector& Coordinates, EVoxelType VoxelType);
+	bool SetVoxel(const FIntVector& Coordinates, uint8 VoxelType);
 
 	/** Local coordinates must be in [0, ChunkSize) on every axis. */
 	static bool IsValidCoordinate(const FIntVector& Coordinates);

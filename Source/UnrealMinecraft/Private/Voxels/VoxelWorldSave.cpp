@@ -4,7 +4,6 @@
 #include "Misc/Crc.h"
 #include "Misc/Paths.h"
 #include "UnrealMinecraft.h"
-#include "Voxels/VoxelChunkData.h"
 #include "Voxels/VoxelWorldGenerator.h"
 
 namespace
@@ -26,19 +25,8 @@ bool UVoxelWorldSave::Exists()
 
 bool UVoxelWorldSave::IsCompatible() const
 {
-	if (FormatVersion < 1 || FormatVersion > CurrentFormat || GeneratorVersion != FVoxelWorldGenerator::Version || Generation <= 0
-		|| !PlayerTransform.IsValid() || ViewRotation.ContainsNaN())
-	{
-		return false;
-	}
-	for (const auto& Edit : Edits)
-	{
-		if (Edit.Value > static_cast<uint8>(EVoxelType::Snow))
-		{
-			return false;
-		}
-	}
-	return true;
+	return FormatVersion >= 1 && FormatVersion <= CurrentFormat && GeneratorVersion == FVoxelWorldGenerator::Version
+		&& Generation > 0 && PlayerTransform.IsValid() && !ViewRotation.ContainsNaN();
 }
 
 UVoxelWorldSave* UVoxelWorldSave::LoadLatest(int32* OutSlot)

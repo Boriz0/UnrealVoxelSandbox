@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Tasks/Task.h"
+#include "Voxels/VoxelCatalog.h"
 #include "Voxels/VoxelChunkData.h"
 #include "Voxels/VoxelMesher.h"
 #include "Voxels/VoxelEditStore.h"
@@ -21,6 +22,6 @@ struct FVoxelChunkBuild
 	FVoxelMeshData Mesh;
 
 	using FTask = UE::Tasks::TTask<FVoxelChunkBuild>;
-	static FTask Launch(int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot = {},
+	static FTask Launch(TSharedRef<const FVoxelCatalogSnapshot> Catalog, int32 Seed, FIntVector Coordinate, TOptional<FVoxelChunkData> Snapshot = {},
 		FVoxelOverrides Edits = {}, FVoxelBorders Borders = {}, TArray<FVoxelProceduralBorder> MissingBorders = {});
 };
