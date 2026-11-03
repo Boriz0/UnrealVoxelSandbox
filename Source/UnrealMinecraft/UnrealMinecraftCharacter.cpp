@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/RendererSettings.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UnrealMinecraft.h"
@@ -155,6 +156,29 @@ void AUnrealMinecraftCharacter::DoJumpStart()
 	if (!GetCharacterMovement()->IsFlying())
 	{
 		Jump();
+	}
+}
+
+void AUnrealMinecraftCharacter::ToggleLumenLighting()
+{
+	const auto* PC = Cast<AUnrealMinecraftPlayerController>(GetController());
+	if (!PC || PC->SessionState != EVoxelSessionState::Playing)
+	{
+		return;
+	}
+
+	FPostProcessSettings& Settings = FirstPersonCameraComponent->PostProcessSettings;
+	const auto CurrentMethod = Settings.bOverride_DynamicGlobalIlluminationMethod
+		? Settings.DynamicGlobalIlluminationMethod : GetDefault<URendererSettings>()->DynamicGlobalIllumination;
+	const bool bEnableLumen = CurrentMethod != EDynamicGlobalIlluminationMethod::Lumen;
+	Settings.bOverride_DynamicGlobalIlluminationMethod = true;
+	Settings.DynamicGlobalIlluminationMethod = bEnableLumen
+		? EDynamicGlobalIlluminationMethod::Lumen : EDynamicGlobalIlluminationMethod::None;
+	if (GEngine)
+	{
+		static const uint64 MessageKey = GetTypeHash(FName(TEXT("VoxelLumenStatus")));
+		GEngine->AddOnScreenDebugMessage(MessageKey, 3.f, FColor::Yellow,
+			bEnableLumen ? TEXT("Lumen lighting ON") : TEXT("Lumen lighting OFF"));
 	}
 }
 

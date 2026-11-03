@@ -36,6 +36,9 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	VoxelContext->MapKey(SpeedDown, EKeys::MouseScrollDown);
 	BoundVoxelInput = Input;
 	UInputAction* FlightToggle = NewObject<UInputAction>(VoxelContext);
+	UInputAction* LightingToggle = NewObject<UInputAction>(VoxelContext);
+	VoxelContext->MapKey(LightingToggle, EKeys::L);
+	VoxelBindingHandles.Add(Input->BindAction(LightingToggle, ETriggerEvent::Started, this, &ThisClass::ToggleLumenLighting).GetHandle());
 	UInputAction* Descend = NewObject<UInputAction>(VoxelContext);
 	VoxelContext->MapKey(FlightToggle, EKeys::LeftShift);
 	VoxelContext->MapKey(Descend, EKeys::LeftControl);

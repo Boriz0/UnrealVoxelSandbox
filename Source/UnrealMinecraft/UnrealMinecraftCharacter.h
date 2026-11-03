@@ -108,6 +108,7 @@ protected:
 private:
 	bool bCollisionBeforeFlight = true;
 	void ToggleFlight();
+	void ToggleLumenLighting();
 	void FlyUp();
 	void FlyDown();
 	void IncreaseRunningSpeed();
