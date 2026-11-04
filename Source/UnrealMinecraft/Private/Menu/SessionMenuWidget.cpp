@@ -19,6 +19,7 @@ void USessionMenuWidget::NativeConstruct()
 	ContinueButton->OnClicked.AddUniqueDynamic(this, &ThisClass::ContinueClicked);
 	NewButton->OnClicked.AddUniqueDynamic(this, &ThisClass::NewClicked);
 	ExitButton->OnClicked.AddUniqueDynamic(this, &ThisClass::ExitClicked);
+	RepositoryButton->OnClicked.AddUniqueDynamic(this, &ThisClass::OpenRepository);
 	ConfirmButton->OnClicked.AddUniqueDynamic(this, &ThisClass::SeedPage);
 	BackButton->OnClicked.AddUniqueDynamic(this, &ThisClass::Cancel);
 	CancelButton->OnClicked.AddUniqueDynamic(this, &ThisClass::Cancel);
@@ -66,6 +67,11 @@ void USessionMenuWidget::ShowError(FText Message)
 void USessionMenuWidget::ShowLoading(FText Message) { LoadingLabel->SetText(Message); }
 void USessionMenuWidget::ContinueClicked() { Controller()->ContinueSession(); }
 void USessionMenuWidget::ExitClicked() { Controller()->ExitGame(false); }
+
+void USessionMenuWidget::OpenRepository()
+{
+	FPlatformProcess::LaunchURL(TEXT("https://github.com/Boriz0/UnrealMinecraft"), nullptr, nullptr);
+}
 
 void USessionMenuWidget::NewClicked()
 {

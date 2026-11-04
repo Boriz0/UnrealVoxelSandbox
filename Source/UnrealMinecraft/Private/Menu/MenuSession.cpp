@@ -248,14 +248,12 @@ bool AUnrealMinecraftPlayerController::StartNewGame(int32 Seed)
 	}
 	// Loading streams from the pawn at the spawn column, while the view remains on the camera.
 	const float HalfHeight = GetPawn()->GetSimpleCollisionHalfHeight();
-	FVector Location = SpawnAnchor;
-	Location.Z = FMath::Max(Location.Z, GroundZ + HalfHeight + 5.);
+	// Center the capsule on the sampled voxel so a taller adjacent column cannot obstruct it.
+	const FVector Location((X + 0.5) * VoxelSize, (Y + 0.5) * VoxelSize,
+		GroundZ + HalfHeight + UCharacterMovementComponent::MIN_FLOOR_DIST);
 	GetPawn()->SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
 	BeginLoading(false);
-	if (PreviousMovementMode == MOVE_Flying)
-	{
-		PreviousMovementMode = MOVE_Falling;
-	}
+	PreviousMovementMode = MOVE_Walking;
 	return true;
 }
 

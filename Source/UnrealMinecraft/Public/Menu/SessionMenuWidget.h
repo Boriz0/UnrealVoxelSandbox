@@ -25,6 +25,7 @@ private:
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ContinueButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> NewButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ExitButton;
+	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> RepositoryButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ConfirmButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> BackButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> RandomButton;
@@ -43,6 +44,7 @@ private:
 	UFUNCTION() void ContinueClicked();
 	UFUNCTION() void NewClicked();
 	UFUNCTION() void ExitClicked();
+	UFUNCTION() void OpenRepository();
 	UFUNCTION() void SeedPage();
 	UFUNCTION() void Cancel();
 	UFUNCTION() void Randomize();
