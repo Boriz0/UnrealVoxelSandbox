@@ -22,7 +22,7 @@ public class UnrealMinecraft : ModuleRules
 			"ProceduralMeshComponent"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore", "PhysicsCore" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "SlateCore", "PhysicsCore", "RenderCore" });
 
 		PublicIncludePaths.AddRange(new string[] {
 			"UnrealMinecraft",

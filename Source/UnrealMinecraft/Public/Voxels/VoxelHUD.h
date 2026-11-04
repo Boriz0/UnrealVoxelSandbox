@@ -18,6 +18,7 @@ public:
 	virtual void DrawHUD() override;
 
 private:
+	void DrawControls(float HotbarLeft, float HotbarTop);
 	UPROPERTY()
 	TObjectPtr<UWidgetComponent> FaceWidget;
 	TSharedPtr<SVoxelFace> FaceDrawing;

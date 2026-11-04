@@ -1,9 +1,12 @@
 #include "Voxels/VoxelHUD.h"
 
 #include "Components/WidgetComponent.h"
+#include "DebugViewModeHelpers.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "ShaderCore.h"
 #include "Rendering/DrawElements.h"
+#include "SceneInterface.h"
 #include "UnrealMinecraftCharacter.h"
 #include "UnrealMinecraftPlayerController.h"
 #include "Voxels/VoxelMesher.h"
@@ -165,6 +168,7 @@ void AVoxelHUD::DrawHUD()
 		const float Stride = Width + 4.f * Scale;
 		const float Left = X - (Stride * (Inventory.SlotCount - 1) + Width) * .5f;
 		const float Top = Canvas->ClipY - 58.f * Scale;
+		DrawControls(Left, Top);
 		for (int32 Slot = 0; Slot < Inventory.SlotCount; ++Slot)
 		{
 			const float SlotX = Left + Slot * Stride;
@@ -179,5 +183,65 @@ void AVoxelHUD::DrawHUD()
 				Inventory.Counts[Slot] ? FLinearColor::White : FLinearColor::Gray,
 				SlotX + 7.f * Scale, Top + 23.f * Scale, GEngine->GetSmallFont(), Scale);
 		}
+	}
+}
+
+void AVoxelHUD::DrawControls(float HotbarLeft, float HotbarTop)
+{
+	TArray<const TCHAR*, TInlineAllocator<16>> Lines = {
+		TEXT("CONTROLS"),
+		TEXT("WASD / arrows   Move     |     Mouse   Look"),
+		TEXT("Space   Jump / fly up     |     Ctrl   Fly down"),
+		TEXT("Left Shift   Toggle noclip flight"),
+		TEXT("Wheel up / down   Speed & acceleration +20% / -20%"),
+		TEXT("Hold left click   Mine     |     Right click   Place"),
+		TEXT("1   Grass     |     2   Stone     |     3   Snow"),
+		TEXT("L   Toggle Lumen     |     Esc   Pause / resume"),
+		TEXT("Gamepad   Left stick: move    Right stick: look"),
+		TEXT("Gamepad   Bottom face button: jump / fly up")
+	};
+#if UE_BUILD_DEVELOPMENT
+	if (PlayerOwner->CheatManager)
+	{
+		const FSceneInterface* Scene = GetWorld()->Scene;
+		const bool bComplexity = Scene && AllowDebugViewShaderMode(DVSM_ShaderComplexity, Scene->GetShaderPlatform(), Scene->GetFeatureLevel());
+		if (AllowDebugViewmodes())
+		{
+			Lines.Add(TEXT("F1   Wireframe     F2   Unlit     F3   Lit"));
+			Lines.Add(bComplexity ? TEXT("F4   Detail lighting     F5   Shader complexity") : TEXT("F4   Detail lighting"));
+		}
+		else if (bComplexity)
+		{
+			Lines.Add(TEXT("F3   Lit     F5   Shader complexity"));
+		}
+		Lines.Add(TEXT("Semicolon   Toggle debug camera"));
+	}
+	Lines.Add(TEXT("F9   Screenshot     |     ~   Console"));
+#endif
+	Lines.Add(IsRunningGame() ? TEXT("F11 / Alt+Enter   Fullscreen") : TEXT("Alt+Enter   Fullscreen"));
+
+	UFont* Font = GEngine->GetSmallFont();
+	float MaxWidth = 0.f;
+	float LineHeight = 0.f;
+	for (const TCHAR* Line : Lines)
+	{
+		float W, H;
+		GetTextSize(Line, W, H, Font);
+		MaxWidth = FMath::Max(MaxWidth, W);
+		LineHeight = FMath::Max(LineHeight, H);
+	}
+	LineHeight += 2.f;
+	const float Scale = FMath::Min3(FMath::Clamp(Canvas->ClipY / 850.f, 0.9f, 3.f),
+		Canvas->ClipX / (MaxWidth + 32.f), Canvas->ClipY * .65f / (Lines.Num() * LineHeight + 32.f));
+	const float Padding = 8.f * Scale;
+	const float Width = MaxWidth * Scale + 2.f * Padding;
+	const float Height = Lines.Num() * LineHeight * Scale + 2.f * Padding;
+	const float Bottom = Padding + Width + Padding > HotbarLeft ? HotbarTop : Canvas->ClipY;
+	const float Top = Bottom - Height - Padding;
+	DrawRect(FLinearColor(0.015f, 0.022f, 0.018f, .78f), Padding, Top, Width, Height);
+	for (int32 Index = 0; Index < Lines.Num(); ++Index)
+	{
+		DrawText(Lines[Index], Index == 0 ? FLinearColor(.65f, 1.f, .7f) : FLinearColor::White,
+			2.f * Padding, Top + Padding + Index * LineHeight * Scale, Font, Scale);
 	}
 }
