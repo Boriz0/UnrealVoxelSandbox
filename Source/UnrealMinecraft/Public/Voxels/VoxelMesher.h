@@ -20,6 +20,7 @@ private:
 /** Chunk-local geometry with no dependency on Actors or mesh components. */
 struct UNREALMINECRAFT_API FVoxelMeshSection
 {
+	// Deterministic rectangle IDs: origin/direction (18 bits), width/height minus one (5 bits each).
 	TArray<uint32> FaceIds;
 	TArray<FVector> Vertices;
 	TArray<int32> Triangles;
@@ -39,6 +40,7 @@ class UNREALMINECRAFT_API FVoxelMesher
 public:
 	static constexpr double VoxelSize = 100.0;
 
-	/** Read-only input; the caller must not modify ChunkData during meshing. */
+	/** Greedily merges exposed coplanar faces of the same type within this chunk.
+	 * Read-only input; the caller must not modify ChunkData during meshing. */
 	static FVoxelMeshData BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders, const TArray<FLinearColor>& Tints);
 };

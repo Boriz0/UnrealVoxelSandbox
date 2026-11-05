@@ -67,63 +67,104 @@ bool FVoxelBorders::IsSolid(FIntVector Outside, int32 Axis, int32 Sign) const
 
 FVoxelMeshData FVoxelMesher::BuildMesh(const FVoxelChunkData& ChunkData, const FVoxelBorders& Borders, const TArray<FLinearColor>& Tints)
 {
+	constexpr int32 Size = FVoxelChunkData::ChunkSize;
+	static_assert(Size == 32, "Packed rectangle IDs require 32-voxel chunks.");
 	FVoxelMeshData Mesh;
-	for (int32 Z = 0; Z < FVoxelChunkData::ChunkSize; ++Z)
+	uint8 Mask[Size * Size];
+	for (int32 FaceIndex = 0; FaceIndex < UE_ARRAY_COUNT(VoxelFaceDefinitions); ++FaceIndex)
 	{
-		for (int32 Y = 0; Y < FVoxelChunkData::ChunkSize; ++Y)
+		const FFaceDefinition& Face = VoxelFaceDefinitions[FaceIndex];
+		const int32 Axis = FaceIndex / 2;
+		const int32 UAxis = Face.U.X ? 0 : (Face.U.Y ? 1 : 2);
+		const int32 VAxis = Face.V.X ? 0 : (Face.V.Y ? 1 : 2);
+		// Scan in the original face's UV directions, including its negative axes.
+		const auto CoordinatesAt = [&](int32 Slice, int32 U, int32 V)
 		{
-			for (int32 X = 0; X < FVoxelChunkData::ChunkSize; ++X)
+			FIntVector Local = FIntVector::ZeroValue;
+			Local[Axis] = Slice;
+			Local[UAxis] = Face.U[UAxis] > 0 ? U : Size - 1 - U;
+			Local[VAxis] = Face.V[VAxis] > 0 ? V : Size - 1 - V;
+			return Local;
+		};
+		for (int32 Slice = 0; Slice < Size; ++Slice)
+		{
+			// Zero means hidden or consumed; material IDs prevent incompatible merges.
+			for (int32 V = 0; V < Size; ++V)
 			{
-				const FIntVector Coordinates(X, Y, Z);
-				const uint8 VoxelType = ChunkData.GetVoxel(Coordinates);
-				if (VoxelType == VoxelAir)
+				for (int32 U = 0; U < Size; ++U)
 				{
-					continue;
+					const FIntVector Local = CoordinatesAt(Slice, U, V);
+					const FIntVector Adjacent = Local + Face.NeighborOffset;
+					const bool bSolid = FVoxelChunkData::IsValidCoordinate(Adjacent)
+						? ChunkData.GetVoxel(Adjacent) != VoxelAir
+						: Borders.IsSolid(Adjacent, Axis, Face.NeighborOffset[Axis]);
+					Mask[U + Size * V] = bSolid ? VoxelAir : ChunkData.GetVoxel(Local);
 				}
-
-				const FLinearColor Color = Tints[VoxelType];
-				const FVector Center = (FVector(X, Y, Z) + FVector(0.5)) * VoxelSize;
-				for (int32 FaceIndex = 0; FaceIndex < UE_ARRAY_COUNT(VoxelFaceDefinitions); ++FaceIndex)
+			}
+			for (int32 V = 0; V < Size; ++V)
+			{
+				for (int32 U = 0; U < Size;)
 				{
-					const FFaceDefinition& Face = VoxelFaceDefinitions[FaceIndex];
-					const FIntVector Adjacent = Coordinates + Face.NeighborOffset;
-					bool bSolid;
-					if (FVoxelChunkData::IsValidCoordinate(Adjacent))
+					const uint8 Type = Mask[U + Size * V];
+					if (Type == VoxelAir)
 					{
-						bSolid = ChunkData.GetVoxel(Adjacent) != VoxelAir;
-					}
-					else
-					{
-						const int32 Axis = Face.NeighborOffset.X ? 0 : (Face.NeighborOffset.Y ? 1 : 2);
-						bSolid = Borders.IsSolid(Adjacent, Axis, Face.NeighborOffset[Axis]);
-					}
-					if (bSolid)
-					{
+						++U;
 						continue;
 					}
-
-					const int32 Slot = static_cast<int32>(VoxelType) - 1;
+					int32 Width = 1;
+					while (U + Width < Size && Mask[U + Width + Size * V] == Type)
+					{
+						++Width;
+					}
+					int32 Height = 1;
+					while (V + Height < Size)
+					{
+						int32 RowWidth = 0;
+						while (RowWidth < Width && Mask[U + RowWidth + Size * (V + Height)] == Type)
+						{
+							++RowWidth;
+						}
+						if (RowWidth != Width)
+						{
+							break;
+						}
+						++Height;
+					}
+					const int32 Slot = static_cast<int32>(Type) - 1;
 					if (Slot >= Mesh.Sections.Num())
 					{
 						Mesh.Sections.SetNum(Slot + 1);
 					}
 					FVoxelMeshSection& Section = Mesh.Sections[Slot];
-					const int32 Cell = X + FVoxelChunkData::ChunkSize * (Y + FVoxelChunkData::ChunkSize * Z);
-					Section.FaceIds.Add(Cell * UE_ARRAY_COUNT(VoxelFaceDefinitions) + FaceIndex);
+					const FIntVector Local = CoordinatesAt(Slice, U, V);
+					const uint32 Cell = Local.X + Size * (Local.Y + Size * Local.Z);
+					// Include extents so upload deduplication detects resized rectangles.
+					Section.FaceIds.Add((Cell * 6 + FaceIndex)
+						| (static_cast<uint32>(Width - 1) << 18) | (static_cast<uint32>(Height - 1) << 23));
+					const FVector Origin = (FVector(Local) + FVector(0.5)
+						+ (Face.Normal - Face.U - Face.V) * 0.5) * VoxelSize;
+					const FVector EdgeU = Face.U * (Width * VoxelSize);
+					const FVector EdgeV = Face.V * (Height * VoxelSize);
 					const int32 FirstVertex = Section.Vertices.Num();
-					const FVector FaceCenter = Center + Face.Normal * (VoxelSize * 0.5);
-					const FVector HalfU = Face.U * (VoxelSize * 0.5);
-					const FVector HalfV = Face.V * (VoxelSize * 0.5);
-					Section.Vertices.Append({ FaceCenter - HalfU - HalfV, FaceCenter + HalfU - HalfV,
-						FaceCenter + HalfU + HalfV, FaceCenter - HalfU + HalfV });
+					Section.Vertices.Append({ Origin, Origin + EdgeU, Origin + EdgeU + EdgeV, Origin + EdgeV });
 					Section.Triangles.Append({ FirstVertex, FirstVertex + 2, FirstVertex + 1,
 						FirstVertex, FirstVertex + 3, FirstVertex + 2 });
-					Section.UVs.Append({ FVector2D(0, 0), FVector2D(1, 0), FVector2D(1, 1), FVector2D(0, 1) });
+					// Preserve one texture tile per voxel.
+					Section.UVs.Append({ FVector2D(0, 0), FVector2D(Width, 0),
+						FVector2D(Width, Height), FVector2D(0, Height) });
 					for (int32 Corner = 0; Corner < 4; ++Corner)
 					{
 						Section.Normals.Add(Face.Normal);
-						Section.VertexColors.Add(Color);
+						Section.VertexColors.Add(Tints[Type]);
 					}
+					for (int32 Row = 0; Row < Height; ++Row)
+					{
+						for (int32 Column = 0; Column < Width; ++Column)
+						{
+							Mask[U + Column + Size * (V + Row)] = VoxelAir;
+						}
+					}
+					U += Width;
 				}
 			}
 		}
