@@ -145,7 +145,7 @@ void AUnrealMinecraftCharacter::UpdateMining()
 	FIntVector Voxel, Face;
 	uint8 Type;
 	AVoxelWorldManager* Manager = TraceVoxel(Voxel, Face, Type);
-	if (!Manager)
+	if (!Manager || Manager->IsBottomVoxel(Voxel))
 	{
 		ResetMining();
 		return;
@@ -179,7 +179,7 @@ bool AUnrealMinecraftCharacter::GetVoxelAimFeedback(FIntVector& Voxel, FIntVecto
 	}
 	bCanPlace = CanPlaceVoxel(*Manager, Voxel + Face);
 	Progress = -1.f;
-	if (MiningManager.Get() == Manager && MiningVoxel == Voxel && MiningType == Type)
+	if (!Manager->IsBottomVoxel(Voxel) && MiningManager.Get() == Manager && MiningVoxel == Voxel && MiningType == Type)
 	{
 		const float Duration = Manager->Catalog->Find(Type)->MiningSeconds;
 		Progress = Duration > 0 ? FMath::Clamp((GetWorld()->GetTimeSeconds() - MiningStartTime) / Duration, 0., 1.) : 1.f;

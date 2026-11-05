@@ -277,10 +277,15 @@ bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) co
 	return Data != nullptr;
 }
 
+bool AVoxelWorldManager::IsBottomVoxel(FIntVector WorldVoxel) const
+{
+	return static_cast<int64>(WorldVoxel.Z) == static_cast<int64>(MinVerticalLayer) * FVoxelChunkData::ChunkSize;
+}
+
 bool AVoxelWorldManager::SetWorldVoxel(FIntVector WorldVoxel, uint8 Type)
 {
 	check(IsInGameThread());
-	if (bPreview)
+	if (bPreview || (Type == VoxelAir && IsBottomVoxel(WorldVoxel)))
 	{
 		return false;
 	}
@@ -472,6 +477,11 @@ void AVoxelWorldManager::StartWorld(int32 Seed, const TMap<FIntVector, uint8>& W
 	const FVoxelWorldGenerator Terrain(Seed);
 	for (const auto& Edit : WorldEdits)
 	{
+		// Restore the natural floor if an older save mined through the bottom row.
+		if (Edit.Value == VoxelAir && IsBottomVoxel(Edit.Key))
+		{
+			continue;
+		}
 		FIntVector Chunk, Local;
 		SplitWorldVoxel(Edit.Key, Chunk, Local);
 		EditStore.Record(Chunk, Local, Edit.Value, GeneratedVoxel(Terrain, *CatalogData, Edit.Key));

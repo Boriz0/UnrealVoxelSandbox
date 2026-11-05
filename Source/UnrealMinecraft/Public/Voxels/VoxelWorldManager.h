@@ -28,6 +28,8 @@ public:
 
 	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
 	bool GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const;
+	/** The lowest voxel row is an unbreakable floor, including for negative layer ranges. */
+	bool IsBottomVoxel(FIntVector WorldVoxel) const;
 	bool SetWorldVoxel(FIntVector WorldVoxel, uint8 Type);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Voxel")
