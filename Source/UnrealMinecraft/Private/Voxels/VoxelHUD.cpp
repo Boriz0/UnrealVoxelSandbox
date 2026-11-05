@@ -10,6 +10,7 @@
 #include "UnrealMinecraftCharacter.h"
 #include "UnrealMinecraftPlayerController.h"
 #include "Voxels/VoxelMesher.h"
+#include "Voxels/VoxelWorldManager.h"
 #include "Widgets/SLeafWidget.h"
 
 namespace
@@ -148,6 +149,10 @@ void AVoxelHUD::Tick(float DeltaSeconds)
 void AVoxelHUD::DrawHUD()
 {
 	Super::DrawHUD();
+	if (bShowHUD && Canvas)
+	{
+		DrawWorldStatistics();
+	}
 	if (bActive && Canvas)
 	{
 		const float X = Canvas->ClipX * .5f;
@@ -183,6 +188,45 @@ void AVoxelHUD::DrawHUD()
 				Inventory.Counts[Slot] ? FLinearColor::White : FLinearColor::Gray,
 				SlotX + 7.f * Scale, Top + 23.f * Scale, GEngine->GetSmallFont(), Scale);
 		}
+	}
+}
+
+void AVoxelHUD::DrawWorldStatistics()
+{
+	const auto* PC = Cast<AUnrealMinecraftPlayerController>(PlayerOwner);
+	const AVoxelWorldManager* Manager = PC ? PC->GetVoxelWorldManager() : nullptr;
+	if (!IsValid(Manager))
+	{
+		return;
+	}
+	int32 Loaded;
+	int64 Pending, Modified;
+	Manager->GetWorldStatistics(Loaded, Pending, Modified);
+	const FString Lines[] = {
+		PC->SessionState == EVoxelSessionState::MainMenu ? TEXT("WORLD PREVIEW") : TEXT("WORLD STATUS"),
+		FString::Printf(TEXT("Loaded chunks: %d"), Loaded),
+		FString::Printf(TEXT("Chunks to load: %lld"), Pending),
+		FString::Printf(TEXT("Modified voxels: %lld"), Modified)
+	};
+	UFont* Font = GEngine->GetSmallFont();
+	float Width = 0.f, LineHeight = 0.f;
+	for (const FString& Line : Lines)
+	{
+		float W, H;
+		GetTextSize(Line, W, H, Font);
+		Width = FMath::Max(Width, W);
+		LineHeight = FMath::Max(LineHeight, H);
+	}
+	LineHeight += 3.f;
+	const float Scale = FMath::Min(FMath::Clamp(Canvas->ClipY / 850.f, .9f, 3.f), Canvas->ClipX / (Width + 32.f));
+	const float Padding = 8.f * Scale;
+	Width = Width * Scale + Padding * 2.f;
+	const float Left = Canvas->ClipX - Width - Padding;
+	DrawRect(FLinearColor(.015f, .022f, .018f, .78f), Left, Padding, Width, 4.f * LineHeight * Scale + Padding * 2.f);
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Lines); ++Index)
+	{
+		DrawText(Lines[Index], Index == 0 ? FLinearColor(.65f, 1.f, .7f) : FLinearColor::White,
+			Left + Padding, Padding * 2.f + Index * LineHeight * Scale, Font, Scale);
 	}
 }
 

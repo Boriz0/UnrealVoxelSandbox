@@ -266,6 +266,32 @@ void AVoxelWorldManager::UpdateStreaming(const FIntVector& PlayerChunk)
 	SortByDistance(PendingLoads, PlayerChunk);
 }
 
+void AVoxelWorldManager::GetWorldStatistics(int32& Loaded, int64& Pending, int64& Modified) const
+{
+	check(IsInGameThread());
+	Loaded = 0;
+	Pending = 0;
+	Modified = EditStore.NumModifiedVoxels();
+	if (bHasStreamingCenter && HorizontalRadius >= 0 && MaxVerticalLayer >= MinVerticalLayer)
+	{
+		const int64 Diameter = 2LL * HorizontalRadius + 1;
+		Pending = Diameter * Diameter * (static_cast<int64>(MaxVerticalLayer) - MinVerticalLayer + 1);
+	}
+	for (const auto& Entry : SpawnedChunks)
+	{
+		if (IsValid(Entry.Value) && Entry.Value->GetChunkData())
+		{
+			++Loaded;
+			if (bHasStreamingCenter && IsWithinHorizontalRadius(Entry.Key, HorizontalRadius)
+				&& Entry.Key.Z >= MinVerticalLayer && Entry.Key.Z <= MaxVerticalLayer)
+			{
+				--Pending;
+			}
+		}
+	}
+	Pending = FMath::Max<int64>(0, Pending);
+}
+
 bool AVoxelWorldManager::GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const
 {
 	check(IsInGameThread());

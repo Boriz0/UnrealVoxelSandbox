@@ -18,6 +18,11 @@
 #include "Voxels/VoxelWorldManager.h"
 #include "Voxels/VoxelWorldSave.h"
 
+AVoxelWorldManager* AUnrealMinecraftPlayerController::GetVoxelWorldManager() const
+{
+	return WorldManager.Get();
+}
+
 #define LOCTEXT_NAMESPACE "VoxelMenu"
 
 void AUnrealMinecraftPlayerController::InitializeMenu()

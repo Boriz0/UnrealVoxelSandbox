@@ -36,6 +36,7 @@ public:
 
 	/** Constructor */
 	AUnrealMinecraftPlayerController();
+	AVoxelWorldManager* GetVoxelWorldManager() const;
 
 	UPROPERTY(BlueprintReadOnly, Category="Session")
 	EVoxelSessionState SessionState = EVoxelSessionState::MainMenu;

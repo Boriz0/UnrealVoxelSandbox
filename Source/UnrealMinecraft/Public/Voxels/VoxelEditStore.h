@@ -11,11 +11,16 @@ struct FVoxelEditStore
 	{
 		if (Type != Generated)
 		{
-			Chunks.FindOrAdd(Chunk).Add(Local, Type);
+			FVoxelOverrides& Overrides = Chunks.FindOrAdd(Chunk);
+			if (!Overrides.Contains(Local))
+			{
+				++ModifiedVoxelCount;
+			}
+			Overrides.Add(Local, Type);
 		}
 		else if (FVoxelOverrides* Overrides = Chunks.Find(Chunk))
 		{
-			Overrides->Remove(Local);
+			ModifiedVoxelCount -= Overrides->Remove(Local);
 			if (Overrides->IsEmpty())
 			{
 				Chunks.Remove(Chunk);
@@ -24,6 +29,7 @@ struct FVoxelEditStore
 	}
 
 	FVoxelOverrides Snapshot(FIntVector Chunk) const { return Chunks.FindRef(Chunk); }
+	int64 NumModifiedVoxels() const { return ModifiedVoxelCount; }
 
 	void Export(TMap<FIntVector, uint8>& WorldEdits) const
 	{
@@ -54,5 +60,6 @@ struct FVoxelEditStore
 	}
 
 private:
+	int64 ModifiedVoxelCount = 0;
 	TMap<FIntVector, FVoxelOverrides> Chunks;
 };

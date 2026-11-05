@@ -25,6 +25,8 @@ public:
 	bool IsInitialGridReady() const;
 	uint8 SolidAtHeight(int64 Z) const { return CatalogData->SolidAtHeight(Z); }
 	bool HasSurfaceCollision(const FVector& Surface) const;
+	/** Game-thread counters. Pending includes queued, generating and awaiting-upload chunks, not remeshes. */
+	void GetWorldStatistics(int32& Loaded, int64& Pending, int64& Modified) const;
 
 	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
 	bool GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const;
