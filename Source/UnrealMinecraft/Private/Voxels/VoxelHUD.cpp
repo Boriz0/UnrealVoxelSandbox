@@ -206,7 +206,9 @@ void AVoxelHUD::DrawWorldStatistics()
 		PC->SessionState == EVoxelSessionState::MainMenu ? TEXT("WORLD PREVIEW") : TEXT("WORLD STATUS"),
 		FString::Printf(TEXT("Loaded chunks: %d"), Loaded),
 		FString::Printf(TEXT("Chunks to load: %lld"), Pending),
-		FString::Printf(TEXT("Modified voxels: %lld"), Modified)
+		FString::Printf(TEXT("Modified voxels: %lld"), Modified),
+		FString::Printf(TEXT("Horizontal radius: %d chunks"), Manager->HorizontalRadius),
+		FString::Printf(TEXT("Unload radius: %d chunks"), Manager->UnloadRadius)
 	};
 	UFont* Font = GEngine->GetSmallFont();
 	float Width = 0.f, LineHeight = 0.f;
@@ -222,7 +224,7 @@ void AVoxelHUD::DrawWorldStatistics()
 	const float Padding = 8.f * Scale;
 	Width = Width * Scale + Padding * 2.f;
 	const float Left = Canvas->ClipX - Width - Padding;
-	DrawRect(FLinearColor(.015f, .022f, .018f, .78f), Left, Padding, Width, 4.f * LineHeight * Scale + Padding * 2.f);
+	DrawRect(FLinearColor(.015f, .022f, .018f, .78f), Left, Padding, Width, UE_ARRAY_COUNT(Lines) * LineHeight * Scale + Padding * 2.f);
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Lines); ++Index)
 	{
 		DrawText(Lines[Index], Index == 0 ? FLinearColor(.65f, 1.f, .7f) : FLinearColor::White,
@@ -238,6 +240,7 @@ void AVoxelHUD::DrawControls(float HotbarLeft, float HotbarTop)
 		TEXT("Space   Jump / fly up     |     Ctrl   Fly down"),
 		TEXT("Left Shift   Toggle noclip flight"),
 		TEXT("Wheel up / down   Speed & acceleration +20% / -20%"),
+		TEXT("Page Up / Down   Chunk radii +/-10% (min step 1)"),
 		TEXT("Hold left click   Mine     |     Right click   Place"),
 		TEXT("1   Grass     |     2   Stone     |     3   Snow"),
 		TEXT("L   Toggle Lumen     |     Esc   Pause / resume"),

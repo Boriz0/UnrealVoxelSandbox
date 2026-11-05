@@ -1,4 +1,5 @@
 #include "UnrealMinecraftCharacter.h"
+#include "UnrealMinecraftPlayerController.h"
 
 #include "Components/CapsuleComponent.h"
 #include "EnhancedInputComponent.h"
@@ -41,6 +42,13 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	SpeedUp->ValueType = SpeedDown->ValueType = EInputActionValueType::Boolean;
 	VoxelContext->MapKey(SpeedUp, EKeys::MouseScrollUp);
 	VoxelContext->MapKey(SpeedDown, EKeys::MouseScrollDown);
+	UInputAction* RadiusUp = NewObject<UInputAction>(VoxelContext);
+	UInputAction* RadiusDown = NewObject<UInputAction>(VoxelContext);
+	RadiusUp->ValueType = RadiusDown->ValueType = EInputActionValueType::Boolean;
+	VoxelContext->MapKey(RadiusUp, EKeys::PageUp);
+	VoxelContext->MapKey(RadiusDown, EKeys::PageDown);
+	VoxelBindingHandles.Add(Input->BindAction(RadiusUp, ETriggerEvent::Started, this, &ThisClass::AdjustChunkRadii, true).GetHandle());
+	VoxelBindingHandles.Add(Input->BindAction(RadiusDown, ETriggerEvent::Started, this, &ThisClass::AdjustChunkRadii, false).GetHandle());
 	BoundVoxelInput = Input;
 	UInputAction* FlightToggle = NewObject<UInputAction>(VoxelContext);
 	UInputAction* LightingToggle = NewObject<UInputAction>(VoxelContext);
@@ -60,6 +68,18 @@ void AUnrealMinecraftCharacter::BindVoxelInput(UEnhancedInputComponent* Input)
 	VoxelBindingHandles.Add(Input->BindAction(Place, ETriggerEvent::Started, this, &ThisClass::PlaceVoxel).GetHandle());
 	VoxelInputSubsystem = Subsystem;
 	Subsystem->AddMappingContext(VoxelContext, -1);
+}
+
+void AUnrealMinecraftCharacter::AdjustChunkRadii(bool bIncrease)
+{
+	const auto* PC = Cast<AUnrealMinecraftPlayerController>(GetController());
+	if (PC && PC->SessionState == EVoxelSessionState::Playing)
+	{
+		if (AVoxelWorldManager* Manager = PC->GetVoxelWorldManager())
+		{
+			Manager->AdjustStreamingRadii(bIncrease);
+		}
+	}
 }
 
 void AUnrealMinecraftCharacter::RemoveVoxelInput()

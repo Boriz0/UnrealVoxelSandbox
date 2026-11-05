@@ -27,6 +27,8 @@ public:
 	bool HasSurfaceCollision(const FVector& Surface) const;
 	/** Game-thread counters. Pending includes queued, generating and awaiting-upload chunks, not remeshes. */
 	void GetWorldStatistics(int32& Loaded, int64& Pending, int64& Modified) const;
+	/** Adjust both radii by 10% (rounded to whole chunks, minimum step one). */
+	void AdjustStreamingRadii(bool bIncrease);
 
 	/** Game-thread access in voxel units. False means the requested chunk is unavailable. */
 	bool GetWorldVoxel(FIntVector WorldVoxel, uint8& OutType) const;

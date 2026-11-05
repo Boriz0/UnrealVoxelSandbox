@@ -107,6 +107,7 @@ private:
 	void IncreaseRunningSpeed();
 	void DecreaseRunningSpeed();
 	void ScaleRunningSpeed(float Multiplier);
+	void AdjustChunkRadii(bool bIncrease);
 
 	void BindVoxelInput(UEnhancedInputComponent* Input);
 	void RemoveVoxelInput();

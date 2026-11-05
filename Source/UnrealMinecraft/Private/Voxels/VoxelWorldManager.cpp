@@ -193,6 +193,20 @@ void AVoxelWorldManager::Tick(float DeltaSeconds)
 	}
 }
 
+void AVoxelWorldManager::AdjustStreamingRadii(bool bIncrease)
+{
+	check(IsInGameThread());
+	const auto Adjust = [bIncrease](int32 Radius)
+	{
+		const int64 Step = FMath::Max<int64>(1, (static_cast<int64>(Radius) + 5) / 10);
+		return FMath::Clamp<int64>(static_cast<int64>(Radius) + (bIncrease ? Step : -Step), 1, MAX_int32 - 1);
+	};
+	HorizontalRadius = static_cast<int32>(Adjust(HorizontalRadius));
+	UnloadRadius = static_cast<int32>(FMath::Max<int64>(Adjust(UnloadRadius), static_cast<int64>(HorizontalRadius) + 1));
+	// Reevaluate immediately on the next tick, even if the player has not moved.
+	bNeedsStreamingUpdate = true;
+}
+
 bool AVoxelWorldManager::IsWithinHorizontalRadius(const FIntVector& Coordinate, int32 Radius) const
 {
 	return FMath::Abs(static_cast<int64>(Coordinate.X) - StreamingCenter.X) <= Radius
