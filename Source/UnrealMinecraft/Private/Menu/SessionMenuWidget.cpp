@@ -3,6 +3,7 @@
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetSwitcher.h"
+#include "VoxelBuildMetadata.h"
 
 #define LOCTEXT_NAMESPACE "VoxelSessionMenu"
 namespace { enum EPage { Home, Confirm, Seed, Loading }; }
@@ -15,6 +16,20 @@ AUnrealMinecraftPlayerController* USessionMenuWidget::Controller() const
 void USessionMenuWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
+	if (RepositoryCredit)
+	{
+		RepositoryCredit->SetText(FText::Format(
+			LOCTEXT("CreditRevisionAndBuildNumber", "Boris Vacula  ·  GitHub ↗\nRevision {0} · {1}\nBuild {2}\nBuilt {3} UTC"),
+			FText::FromString(ANSI_TO_TCHAR(VOXEL_REVISION_COUNT)),
+			FText::FromString(FString(ANSI_TO_TCHAR(VOXEL_BUILD_REVISION)).Left(12)),
+			FText::FromString(ANSI_TO_TCHAR(VOXEL_BUILD_NUMBER)),
+			FText::FromString(ANSI_TO_TCHAR(VOXEL_BUILD_DATE))));
+		RepositoryCredit->SetToolTipText(FText::Format(
+			LOCTEXT("BuildRevisionDetails", "Git commit: {0}\nUncommitted changes are not identified by this revision."),
+			FText::FromString(ANSI_TO_TCHAR(VOXEL_BUILD_REVISION))));
+		RepositoryCredit->SetJustification(ETextJustify::Center);
+		RepositoryCredit->SetAutoWrapText(true);
+	}
 	if (Title)
 	{
 		Title->SetText(LOCTEXT("ProjectTitle", "UNREAL VOXEL SANDBOX"));

@@ -11,5 +11,6 @@ public class UnrealMinecraftTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		ExtraModuleNames.Add("UnrealMinecraft");
+		PreBuildSteps.Add("powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$(ProjectDir)/Build/GenerateBuildMetadata.ps1\" -ProjectDirectory \"$(ProjectDir)\" -TargetName \"$(TargetName)\"");
 	}
 }

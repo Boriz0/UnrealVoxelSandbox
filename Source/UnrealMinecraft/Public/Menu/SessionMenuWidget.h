@@ -28,6 +28,7 @@ private:
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> NewButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ExitButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> RepositoryButton;
+	UPROPERTY(meta=(BindWidget)) TObjectPtr<UTextBlock> RepositoryCredit;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ConfirmButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> BackButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> RandomButton;

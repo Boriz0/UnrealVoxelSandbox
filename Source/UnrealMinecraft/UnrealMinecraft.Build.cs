@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class UnrealMinecraft : ModuleRules
 {
 	public UnrealMinecraft(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+		// Generated before each build, including when UBT reuses its cached makefile.
+		string MetadataDirectory = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../Intermediate/Build/Metadata", Target.Name));
+		Directory.CreateDirectory(MetadataDirectory);
+		PrivateIncludePaths.Add(MetadataDirectory);
 
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
@@ -42,4 +48,5 @@ public class UnrealMinecraft : ModuleRules
 
 		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
 	}
+
 }
