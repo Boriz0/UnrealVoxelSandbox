@@ -22,3 +22,4 @@ Build/*/FileOpenOrder/*.log
 
 # Previous SVN metadata, if present
 .svn/
+Build/Windows/FileOpenOrder/EditorOpenOrder.log

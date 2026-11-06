@@ -236,16 +236,16 @@ void AVoxelHUD::DrawControls(float HotbarLeft, float HotbarTop)
 {
 	TArray<const TCHAR*, TInlineAllocator<16>> Lines = {
 		TEXT("CONTROLS"),
-		TEXT("WASD / arrows   Move     |     Mouse   Look"),
-		TEXT("Space   Jump / fly up     |     Ctrl   Fly down"),
-		TEXT("Left Shift   Toggle noclip flight"),
-		TEXT("Wheel up / down   Speed & acceleration +20% / -20%"),
-		TEXT("Page Up / Down   Chunk radii +/-10% (min step 1)"),
-		TEXT("Hold left click   Mine     |     Right click   Place"),
-		TEXT("1   Grass     |     2   Stone     |     3   Snow"),
-		TEXT("L   Toggle Lumen     |     Esc   Pause / resume"),
-		TEXT("Gamepad   Left stick: move    Right stick: look"),
-		TEXT("Gamepad   Bottom face button: jump / fly up")
+		TEXT("WASD + Mouse: Move and look around"),
+		TEXT("Space: Jump"),
+		TEXT("Left Shift: Toggle noclip flying"),
+		TEXT("Wheel Up / Down: Speed +20% / -20%"),
+		TEXT("Page Up / Down: Chunk radii +10% / -10%"),
+		TEXT("LMB Hold: Mine"),
+		TEXT("RMB Click: Place stored block"),
+		TEXT("1: Grass   |   2: Stone   |   3: Snow"),
+		TEXT("L: Toggle Lumen"),
+		TEXT("Esc: Pause / resume"),
 	};
 #if UE_BUILD_DEVELOPMENT
 	if (PlayerOwner->CheatManager)
@@ -254,18 +254,18 @@ void AVoxelHUD::DrawControls(float HotbarLeft, float HotbarTop)
 		const bool bComplexity = Scene && AllowDebugViewShaderMode(DVSM_ShaderComplexity, Scene->GetShaderPlatform(), Scene->GetFeatureLevel());
 		if (AllowDebugViewmodes())
 		{
-			Lines.Add(TEXT("F1   Wireframe     F2   Unlit     F3   Lit"));
-			Lines.Add(bComplexity ? TEXT("F4   Detail lighting     F5   Shader complexity") : TEXT("F4   Detail lighting"));
+			Lines.Add(TEXT("F1: Wireframe   F2: Unlit   F3: Lit"));
+			Lines.Add(bComplexity ? TEXT("F4: Detail lighting   F5: Shader complexity") : TEXT("F4: Detail lighting"));
 		}
 		else if (bComplexity)
 		{
-			Lines.Add(TEXT("F3   Lit     F5   Shader complexity"));
+			Lines.Add(TEXT("F3: Lit   F5: Shader complexity"));
 		}
-		Lines.Add(TEXT("Semicolon   Toggle debug camera"));
+		Lines.Add(TEXT("Semicolon: Toggle debug camera"));
 	}
-	Lines.Add(TEXT("F9   Screenshot     |     ~   Console"));
+	Lines.Add(TEXT("F9: Screenshot   |   Tilde: Console"));
 #endif
-	Lines.Add(IsRunningGame() ? TEXT("F11 / Alt+Enter   Fullscreen") : TEXT("Alt+Enter   Fullscreen"));
+	Lines.Add(IsRunningGame() ? TEXT("F11 / Alt+Enter: Fullscreen") : TEXT("Alt+Enter: Fullscreen"));
 
 	UFont* Font = GEngine->GetSmallFont();
 	float MaxWidth = 0.f;
