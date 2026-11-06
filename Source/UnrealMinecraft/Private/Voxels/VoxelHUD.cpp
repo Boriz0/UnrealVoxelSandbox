@@ -60,9 +60,12 @@ public:
 		FSlateWindowElementList& Elements, int32 Layer, const FWidgetStyle&, bool) const override
 	{
 		const FPaintGeometry Paint = Geometry.ToPaintGeometry();
-		const TArray<FVector2D> Border = {{1,1}, {127,1}, {127,127}, {1,127}, {1,1}};
+		const TArray<FVector2D> Border = {{3,3}, {125,3}, {125,125}, {3,125}, {3,3}};
+		// Dark outer stroke and opaque cyan remain distinct on both snow and dark stone.
 		FSlateDrawElement::MakeLines(Elements, Layer, Paint, Border, ESlateDrawEffect::None,
-			FLinearColor(1.f, 1.f, 1.f, .47f), true, 1.4f);
+			FLinearColor(.005f, .008f, .01f, 1.f), true, 5.f);
+		FSlateDrawElement::MakeLines(Elements, Layer + 1, Paint, Border, ESlateDrawEffect::None,
+			FLinearColor(0.f, .8f, 1.f, 1.f), true, 2.5f);
 		if (Stage >= 0)
 		{
 			const float Progress = .08f + .92f * Stage / 32.f;
@@ -78,11 +81,11 @@ public:
 				{
 					Points.Add(FMath::Lerp(Branch.Points[I], Branch.Points[I+1], FMath::Min(Length - I, 1.f)));
 				}
-				FSlateDrawElement::MakeLines(Elements, Layer + 1, Paint, Points, ESlateDrawEffect::None,
+				FSlateDrawElement::MakeLines(Elements, Layer + 2, Paint, Points, ESlateDrawEffect::None,
 					FLinearColor(.018f, .012f, .01f, .92f), true, 2.2f);
 			}
 		}
-		return Layer + 1;
+		return Layer + 2;
 	}
 
 private:

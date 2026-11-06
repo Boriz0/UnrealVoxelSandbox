@@ -12,6 +12,21 @@ AUnrealMinecraftPlayerController* USessionMenuWidget::Controller() const
 	return GetOwningPlayer<AUnrealMinecraftPlayerController>();
 }
 
+void USessionMenuWidget::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+	if (Title)
+	{
+		Title->SetText(LOCTEXT("ProjectTitle", "UNREAL VOXEL SANDBOX"));
+		Title->SetAutoWrapText(true);
+		Title->SetJustification(ETextJustify::Center);
+	}
+	if (SeedBox)
+	{
+		SeedBox->SetForegroundColor(FLinearColor(.015f, .015f, .015f, 1.f));
+	}
+}
+
 void USessionMenuWidget::NativeConstruct()
 {
 	Super::NativeConstruct();

@@ -16,11 +16,13 @@ class UNREALMINECRAFT_API USessionMenuWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
+	virtual void NativePreConstruct() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual FReply NativeOnPreviewKeyDown(const FGeometry& Geometry, const FKeyEvent& Key) override;
 
 private:
+	UPROPERTY(meta=(BindWidget)) TObjectPtr<UTextBlock> Title;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UWidgetSwitcher> Pages;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> ContinueButton;
 	UPROPERTY(meta=(BindWidget)) TObjectPtr<UButton> NewButton;
