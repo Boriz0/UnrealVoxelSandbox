@@ -4,6 +4,16 @@ A Minecraft-inspired voxel sandbox built by Boris Vacula with **Unreal Engine 5.
 
 The primary focus is on clean architecture, procedural world generation, performance, and maintainable code rather than complex gameplay.
 
+## Download & Play
+
+**[Download the release Windows build](https://github.com/Boriz0/UnrealVoxelSandbox/releases/download/v1.0.0/UnrealVoxelSandbox.zip)**
+
+1. Download `UnrealVoxelSandbox-Windows-v1.0.zip` from the release assets.
+2. Extract the ZIP file.
+3. Run `UnrealMinecraft.exe`.
+
+No Unreal Engine installation is required.
+
 ## Screenshots
 
 <img width="2560" height="1440" alt="ScreenShot00016" src="https://github.com/user-attachments/assets/43ebca0a-d52d-49eb-9b7f-0698f17b4a7a" />
