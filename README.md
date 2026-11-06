@@ -1,4 +1,4 @@
-# UnrealMinecraft
+# Unreal Voxel Sandbox
 
 A Minecraft-inspired voxel sandbox built by Boris Vacula with **Unreal Engine 5.8 and C++**.
 
