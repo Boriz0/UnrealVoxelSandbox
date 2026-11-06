@@ -8,7 +8,7 @@ The primary focus is on clean architecture, procedural world generation, perform
 
 **[Download the release Windows build](https://github.com/Boriz0/UnrealVoxelSandbox/releases/download/v1.0.0/UnrealVoxelSandbox.zip)**
 
-1. Download `UnrealVoxelSandbox-Windows-v1.0.zip` from the release assets.
+1. Download `UnrealVoxelSandbox.zip` from the release assets.
 2. Extract the ZIP file.
 3. Run `UnrealMinecraft.exe`.
 
