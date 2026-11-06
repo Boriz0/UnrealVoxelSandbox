@@ -1,6 +1,6 @@
 # Unreal Voxel Sandbox
 
-A Minecraft-inspired voxel sandbox built by Boris Vacula with **Unreal Engine 5.8 and C++**.
+A Minecraft-inspired voxel sandbox built by Boris Vacula with **Unreal Engine 5.8 and C++** with assistance from OpenAI Codex.
 
 The primary focus is on clean architecture, procedural world generation, performance, and maintainable code rather than complex gameplay.
 
@@ -28,10 +28,9 @@ No Unreal Engine installation is required.
 
 - **Procedural terrain** — Seed-based world generation using noise.
 - **Chunk-based world** — Voxel terrain organized into chunks with dynamically generated meshes.
-- **First-person exploration** — Character movement and collision with voxel terrain.
+- **Greedy Meshing** — Adjacent coplanar voxel faces are merged into larger quads to reduce mesh complexity.
 - **Multiple block types** — Terrain materials determined by elevation.
-- **World streaming** — Dynamic chunk management around the player.
-- **Main menu** — New world creation and gameplay menu.
+- **World streaming** — Dynamic chunk loading and unloading based on player proximity.
 
 ### Additional Systems
 
@@ -51,10 +50,11 @@ The project also targets the following functionality:
 
 ## Getting Started
 
-1. Clone this repository.
-2. Open `UnrealMinecraft.uproject` in Unreal Engine 5.8.
-3. Build the C++ project when prompted.
-4. Launch the project in the Unreal Editor.
+1. Install Unreal Engine 5.8 and Visual Studio with C++ development tools.
+2. Clone this repository, including Git LFS assets.
+3. Run RegenerateProjectFiles.bat.
+4. Open UnrealMinecraft.sln in Visual Studio and build the project.
+5. Launch the project in Unreal Editor and press Play.
 
 ## About
 
