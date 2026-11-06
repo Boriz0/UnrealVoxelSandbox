@@ -6,6 +6,7 @@ Intermediate/
 Saved/
 Plugins/**/Binaries/
 Plugins/**/Intermediate/
+Build/*/FileOpenOrder/*.log
 
 # Visual Studio generated files
 .vs/
